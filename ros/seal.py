@@ -46,6 +46,21 @@ def seal_contract(project: Path, contract_path: Path | None = None) -> dict[str,
     state = journal.replay(project)
     if state.contract_digest == contract_digest:
         return {"status": "ALREADY_REGISTERED", "contract_digest": contract_digest}
+    # A generation bump is a frame transition: it must cite an adoption event
+    # whose digest matches this exact contract text (ordering by data, not by
+    # a state machine).
+    generation = contract["frame"]["generation"]
+    if state.generation is not None and generation > state.generation:
+        adopted = any(
+            a["body"]["successor_generation"] == generation
+            and a["body"]["successor_contract_digest"] == contract_digest
+            for a in state.adoptions
+        )
+        if not adopted:
+            raise SealError(
+                f"registering generation {generation} requires an adoption event "
+                "citing this contract's digest (ros.jump)"
+            )
     event = journal.append_event(
         project,
         "contract_registered.v1",
