@@ -20,7 +20,7 @@ from seal import SealError, seal_run
 sys.path.insert(0, str(Path(__file__).parent))
 import problems as P
 from run import run_problem, value_of
-from conftest import _git, issue_and_commit, make_project, run_kernel
+from harness import _git, issue_and_commit, make_project, run_kernel
 
 
 # ---------------------------------------------------------- capability -----

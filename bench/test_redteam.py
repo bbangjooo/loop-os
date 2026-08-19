@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 import journal
-from conftest import _git, issue_and_commit, make_project, read_ledger, run_kernel
+from harness import _git, issue_and_commit, make_project, read_ledger, run_kernel
 
 OBJECTIVE = "from pathlib import Path\nprint(Path('value.txt').read_text().strip())\n"
 

@@ -5,17 +5,10 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent))  # make harness/problems importable
-
-from harness import (  # noqa: F401  (re-exported for the test modules)
-    _git,
-    drive,
-    issue_and_commit,
-    make_project,
-    read_ledger,
-    read_trials,
-    run_kernel,
-)
+# Make harness / problems / run importable for the bench test modules.
+_BENCH_DIR = str(Path(__file__).parent)
+if _BENCH_DIR not in sys.path:
+    sys.path.append(_BENCH_DIR)
 
 
 @pytest.fixture

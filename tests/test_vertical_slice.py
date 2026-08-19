@@ -15,7 +15,7 @@ import aim
 import journal
 from seal import seal_diagnosis, seal_run
 
-from conftest import _git
+from tests.conftest import _git
 
 KERNEL = Path(__file__).parents[1] / "kernel" / "loop.py"
 

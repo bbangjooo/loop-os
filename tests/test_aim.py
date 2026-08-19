@@ -11,7 +11,7 @@ import journal
 from _canon import digest_file
 from seal import seal_contract
 
-from conftest import write_contract
+from tests.conftest import write_contract
 
 KERNEL = Path(__file__).parents[1] / "kernel" / "loop.py"
 
