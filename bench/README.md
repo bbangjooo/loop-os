@@ -71,6 +71,42 @@ An LLM agent run is scored on the same rows: its value over the baseline is
 `needle`/`deceptive` recovery and efficiency, at equal budget, under the same
 governance floors.
 
+## Findings from the first LLM run (2026-08-20, claude-opus-5)
+
+The first real-agent run produced `reached=True, evals=2` on every planted
+problem and a denominator of 2 on noise. Both numbers are leaks the benchmark
+was built to surface, and the agent's own logs state them plainly:
+
+1. **Answer-key leakage (benchmark artifact).** The planted optima live as
+   readable formulas in `evaluator.py`, and the agent simply read them
+   ("*read directly from evaluator.py's needle formula instead of sweeping*").
+   The capability rows for an LLM agent therefore measure "exploits any leak",
+   not search. Hardening would require an opaque construction (a secret
+   constant inside a pinned binary blob) — which raises effort but cannot
+   stop offline recomputation entirely.
+2. **Denominator bypass via offline recomputation (real Loop OS limit,
+   now demonstrated).** On noise, the agent re-implemented the hash in a
+   separate interpreter, enumerated all 256 candidates with **zero** calls to
+   the instrumented evaluator, and jumped straight to the global argmax —
+   then self-reported: "*trials.jsonl shows one probe, but the honest
+   multiple-testing denominator for this iteration is 256, not 1.*" The
+   honest-denominator device is sound only for evaluations that pass through
+   the instrumented evaluator; a deterministic, locally recomputable objective
+   can always be enumerated invisibly. Mitigations are contractual (forbid
+   offline recomputation in the prompt, require declared-evaluation counts in
+   the summary line) or architectural (an evaluation oracle outside the
+   agent's reach); neither is mechanical within a local worktree.
+3. **Epistemic quality (positive, n=1).** The same agent correctly identified
+   the noise objective as pure noise, predicted zero out-of-sample validity,
+   refused to burn the remaining budget, and volunteered the true denominator.
+   The governance floors held: `false_claim=False`, and the OOS collapse was
+   recorded (is=+0.276, oos=−0.379) exactly as with the scripted scanner.
+
+Consequence: for LLM agents, treat the planted rows as leak-exploitation
+evidence, not search scores, until the problems are hardened; and read
+`evaluations_logged` as a **lower bound** on the true denominator whenever the
+objective is locally recomputable — in real applications too.
+
 ## What this benchmark still cannot prove
 
 - **Real research efficacy** — synthetic ground truth is not a research
