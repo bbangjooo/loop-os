@@ -5,8 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from ros import aim, journal, note, steer
-from ros.seal import seal_diagnosis, seal_run
+import aim
+import journal
+import note
+import steer
+from seal import seal_diagnosis, seal_run
 
 
 def _summary(path: Path, spec_digest: str, baseline: float, final: float) -> Path:

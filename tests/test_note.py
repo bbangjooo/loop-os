@@ -5,7 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from ros import journal, note
+import journal
+import note
 
 
 def test_note_requires_a_journal(project: Path) -> None:

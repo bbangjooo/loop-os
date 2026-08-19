@@ -17,7 +17,7 @@ The budget is reserved-not-measured: the draw happens at issue time and an
 abandoned run does not refund it.
 
 Instrument surface:
-    python -m ros.aim --project DIR [--contract contract.toml]
+    python os/aim.py --project DIR [--contract contract.toml]
 """
 
 from __future__ import annotations
@@ -32,8 +32,8 @@ from typing import Any
 
 import yaml
 
-from . import journal
-from ._canon import digest_file
+import journal
+from _canon import digest_file
 
 CONTRACT_SCHEMA = "ros2-contract-v1"
 CONTRACT_NAME = "contract.toml"
@@ -206,7 +206,7 @@ def issue(project: Path, contract_path: Path | None = None) -> dict[str, Any]:
 
     # R2 — the contract on disk must be the registered one.
     if state.contract_digest is None:
-        raise AimRefusal("R2_CONTRACT", "contract not registered; seal it first (ros.seal contract)")
+        raise AimRefusal("R2_CONTRACT", "contract not registered; seal it first (os/seal.py contract)")
     if state.contract_digest != contract_digest:
         raise AimRefusal(
             "R2_CONTRACT",
@@ -272,7 +272,7 @@ def issue(project: Path, contract_path: Path | None = None) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="ros.aim")
+    parser = argparse.ArgumentParser(prog="aim")
     parser.add_argument("--project", type=Path, required=True)
     parser.add_argument("--contract", type=Path, default=None)
     args = parser.parse_args(argv)

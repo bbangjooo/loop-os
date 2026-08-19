@@ -5,8 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from ros import journal, jump, note, steer
-from ros.seal import SealError, seal_contract
+import journal
+import jump
+import note
+import steer
+from seal import SealError, seal_contract
 from tests.conftest import CONTRACT_TEMPLATE
 from tests.test_steer import _cycle
 
@@ -106,6 +109,48 @@ def test_stale_dossier_is_refused(registered_project: Path, tmp_path: Path) -> N
     inputs["dossier_path"].write_text(json.dumps(dossier), encoding="utf-8")
     with pytest.raises(jump.JumpError, match="different registered contract"):
         jump.adopt(registered_project, **inputs)
+
+
+def test_revoke_rolls_the_frame_back(registered_project: Path, tmp_path: Path) -> None:
+    successor = _successor(registered_project, tmp_path)
+    inputs = _jump_inputs(registered_project, tmp_path)
+    adopted = jump.adopt(registered_project, **{**inputs, "successor_path": successor})
+    seal_contract(registered_project, successor)
+    assert journal.replay(registered_project).generation == 2
+    result = jump.revoke(registered_project, adopted["event_id"], "reviewer retracted after new evidence")
+    assert result["status"] == "REVOKED"
+    state = journal.replay(registered_project)
+    # The registration that cited the adoption is void on replay; the frame
+    # falls back to generation 1's registered contract.
+    assert state.generation == 1
+    assert result["generation_now"] == 1
+    # Re-registering generation 2 now needs a fresh adoption.
+    with pytest.raises(SealError, match="adoption"):
+        seal_contract(registered_project, successor)
+
+
+def test_revoke_window_closes_when_budget_is_drawn(registered_project: Path, tmp_path: Path) -> None:
+    import aim
+
+    successor = _successor(registered_project, tmp_path)
+    inputs = _jump_inputs(registered_project, tmp_path)
+    adopted = jump.adopt(registered_project, **{**inputs, "successor_path": successor})
+    seal_contract(registered_project, successor)
+    aim.issue(registered_project, successor)  # generation 2 draws budget
+    with pytest.raises(jump.JumpError, match="cannot be revoked"):
+        jump.revoke(registered_project, adopted["event_id"], "too late")
+
+
+def test_revoke_requires_an_active_adoption_and_a_reason(registered_project: Path, tmp_path: Path) -> None:
+    with pytest.raises(jump.JumpError, match="non-empty reason"):
+        jump.revoke(registered_project, "ev-whatever", " ")
+    with pytest.raises(jump.JumpError, match="no active adoption"):
+        jump.revoke(registered_project, "ev-whatever", "reason")
+    inputs = _jump_inputs(registered_project, tmp_path)
+    adopted = jump.adopt(registered_project, **inputs)
+    jump.revoke(registered_project, adopted["event_id"], "first revoke")
+    with pytest.raises(jump.JumpError, match="no active adoption"):
+        jump.revoke(registered_project, adopted["event_id"], "double revoke")
 
 
 def test_generation_bump_requires_adoption(registered_project: Path, tmp_path: Path) -> None:

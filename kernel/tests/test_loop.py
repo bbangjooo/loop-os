@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-SCRIPT = Path(__file__).parents[1] / "loop" / "experiment_loop.py"
+SCRIPT = Path(__file__).parents[1] / "loop.py"
 SPEC = importlib.util.spec_from_file_location("experiment_loop", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 experiment_loop = importlib.util.module_from_spec(SPEC)

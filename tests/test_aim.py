@@ -6,13 +6,14 @@ from pathlib import Path
 
 import pytest
 
-from ros import aim, journal
-from ros._canon import digest_file
-from ros.seal import seal_contract
+import aim
+import journal
+from _canon import digest_file
+from seal import seal_contract
 
 from conftest import write_contract
 
-KERNEL = Path(__file__).parents[1] / "kernel" / "loop" / "experiment_loop.py"
+KERNEL = Path(__file__).parents[1] / "kernel" / "loop.py"
 
 
 def _load_kernel():

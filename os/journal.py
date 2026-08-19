@@ -7,9 +7,9 @@ any edit to sealed history breaks the chain and `verify` reports it. The
 workflow holds no other state: what exists in this file *is* where we are.
 
 Instrument surface:
-    python -m ros.journal bootstrap --project DIR --project-id ID [--lineage name=digest ...]
-    python -m ros.journal verify    --project DIR
-    python -m ros.journal status    --project DIR
+    python os/journal.py bootstrap --project DIR --project-id ID [--lineage name=digest ...]
+    python os/journal.py verify    --project DIR
+    python os/journal.py status    --project DIR
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from ._canon import canonical_json, digest_bytes
+from _canon import canonical_json, digest_bytes
 
 JOURNAL_SCHEMA = "ros2-journal-v1"
 JOURNAL_DIR = ".journal"
@@ -40,6 +40,7 @@ EVENT_KINDS = (
     "note_sealed.v1",
     "claim_sealed.v1",
     "adoption.v1",
+    "adoption_revoked.v1",
 )
 
 
@@ -166,12 +167,21 @@ class JournalState:
 
 def reduce_state(events: list[dict[str, Any]]) -> JournalState:
     state = JournalState(events=events)
+    # Revocation is the one place a later event invalidates an earlier one, so
+    # the reducer pre-scans revocations, then skips the revoked adoption and
+    # any registration that cited it via adoption_ref. Registrations without
+    # adoption_ref (base generations, pre-revoke journals) are never skipped.
+    revoked = {
+        e["body"]["adoption_event_id"] for e in events if e["kind"] == "adoption_revoked.v1"
+    }
     for event in events:
         kind, body = event["kind"], event["body"]
         if kind == "bootstrap.v1":
             state.project_id = body["project_id"]
             state.lineage = body.get("lineage", [])
         elif kind == "contract_registered.v1":
+            if body.get("adoption_ref") in revoked:
+                continue
             state.contract_digest = body["contract_digest"]
             state.generation = body["generation"]
         elif kind == "spec_issued.v1":
@@ -195,12 +205,64 @@ def reduce_state(events: list[dict[str, Any]]) -> JournalState:
         elif kind == "claim_sealed.v1":
             state.claims.append(event)
         elif kind == "adoption.v1":
-            state.adoptions.append(event)
+            if event["event_id"] not in revoked:
+                state.adoptions.append(event)
     return state
 
 
 def replay(project: Path) -> JournalState:
     return reduce_state(load_events(project))
+
+
+ANCHOR_NAME = ".journal-anchor.json"
+
+
+def anchor_path(project: Path) -> Path:
+    return project / ANCHOR_NAME
+
+
+def write_anchor(project: Path) -> dict[str, Any]:
+    """Record the current head digest in a git-TRACKED file at the project
+    root. This closes the chain's one blind spot: a canonical edit to the
+    newest line is invisible to the chain itself, but not to an anchored head
+    that lives in git history. The anchor is written by this instrument and
+    committed by the agent alongside specs/diagnoses."""
+    events = load_events(project)  # never anchor a chain that does not verify
+    payload = {
+        "anchor_schema": "ros2-anchor-v1",
+        "head": head_digest(project),
+        "events": len(events),
+        "anchored_at": _now(),
+    }
+    anchor_path(project).write_text(
+        json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8"
+    )
+    return payload
+
+
+def check_anchor(project: Path) -> dict[str, Any]:
+    """If an anchor exists, its head must be the digest of some journal line —
+    i.e. the anchored prefix is intact and the journal only grew since. A head
+    that matches no line means sealed history was rewritten after anchoring."""
+    path = anchor_path(project)
+    if not path.exists():
+        return {"anchored": False}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise JournalError(f"anchor file is not valid JSON: {error}") from error
+    head = payload.get("head")
+    line_digests = [digest_bytes(line) for line in _read_lines(journal_path(project))]
+    if head not in line_digests:
+        raise JournalError(
+            "anchor mismatch: the anchored head matches no journal line — "
+            "sealed history was rewritten after the anchor was committed"
+        )
+    return {
+        "anchored": True,
+        "anchored_events": payload.get("events"),
+        "events_since_anchor": len(line_digests) - 1 - line_digests.index(head),
+    }
 
 
 def ensure_gitignored(project: Path) -> None:
@@ -224,7 +286,7 @@ def _emit(payload: dict[str, Any], *, ok: bool = True) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="ros.journal")
+    parser = argparse.ArgumentParser(prog="journal")
     sub = parser.add_subparsers(dest="command", required=True)
 
     boot = sub.add_parser("bootstrap")
@@ -232,7 +294,7 @@ def main(argv: list[str] | None = None) -> int:
     boot.add_argument("--project-id", required=True)
     boot.add_argument("--lineage", action="append", default=[], metavar="NAME=DIGEST")
 
-    for name in ("verify", "status"):
+    for name in ("verify", "status", "anchor"):
         cmd = sub.add_parser(name)
         cmd.add_argument("--project", type=Path, required=True)
 
@@ -252,21 +314,32 @@ def main(argv: list[str] | None = None) -> int:
             )
             ensure_gitignored(project)
             return _emit({"status": "BOOTSTRAPPED", "event_id": event["event_id"]})
+        if args.command == "anchor":
+            payload = write_anchor(project)
+            return _emit(
+                {"status": "ANCHORED", **payload,
+                 "note": f"commit {ANCHOR_NAME} so the head lands in git history"}
+            )
         if args.command == "verify":
             events = load_events(project)
             return _emit(
-                {"status": "VERIFIED", "events": len(events), "head": head_digest(project)}
+                {
+                    "status": "VERIFIED",
+                    "events": len(events),
+                    "head": head_digest(project),
+                    "anchor": check_anchor(project),
+                }
             )
         state = replay(project)
         next_required: str
         if state.contract_digest is None:
-            next_required = "register the contract (ros.seal contract)"
+            next_required = "register the contract (os/seal.py contract)"
         elif state.pending_runs:
-            next_required = "run the kernel for the issued spec, then seal it (ros.seal run)"
+            next_required = "run the kernel for the issued spec, then seal it (os/seal.py run)"
         elif state.pending_diagnoses:
-            next_required = "author a diagnosis file and seal it (ros.seal diagnosis)"
+            next_required = "author a diagnosis file and seal it (os/seal.py diagnosis)"
         else:
-            next_required = "issue the next spec (ros.aim)"
+            next_required = "issue the next spec (os/aim.py)"
         return _emit(
             {
                 "status": "OK",

@@ -7,12 +7,13 @@ session/model route, honest declaration), and a human approval. A missing or
 mismatched file makes the event impossible to construct; that is the whole
 enforcement (design rule C: ordering is data dependency).
 
-Registering a contract with a higher generation is refused by ros.seal until
+Registering a contract with a higher generation is refused by os/seal.py until
 an adoption event covering that generation exists — so the ritual's order is
 carried by the data, not by a state machine.
 
 Instrument surface:
-    python -m ros.jump --project DIR --dossier F --successor F --review F --approval F
+    python os/jump.py adopt  --project DIR --dossier F --successor F --review F --approval F
+    python os/jump.py revoke --project DIR --adoption EVENT_ID --reason TEXT
 """
 
 from __future__ import annotations
@@ -23,9 +24,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from . import journal
-from .aim import ContractError, load_contract
-from ._canon import digest_file
+import journal
+from aim import ContractError, load_contract
+from _canon import digest_file
 
 
 class JumpError(RuntimeError):
@@ -58,7 +59,7 @@ def adopt(
     rival = dossier.get("rival_draft") or {}
     rival_note_id = rival.get("note_id")
     if not rival_note_id:
-        raise JumpError("dossier carries no rival_draft.note_id; produce it with ros.steer dossier")
+        raise JumpError("dossier carries no rival_draft.note_id; produce it with os/steer.py dossier")
     current_frame = dossier.get("current_frame") or {}
     if state.contract_digest and current_frame.get("contract_digest") != state.contract_digest:
         raise JumpError(
@@ -106,20 +107,71 @@ def adopt(
         "event_id": event["event_id"],
         "successor_generation": successor_generation,
         "successor_class": successor["frame"]["class"],
-        "next_required": "register the successor contract (ros.seal contract), then ros.aim",
+        "next_required": "register the successor contract (os/seal.py contract), then os/aim.py",
+    }
+
+
+def revoke(project: Path, adoption_event_id: str, reason: str) -> dict[str, Any]:
+    """Undo an adoption while nothing irreversible happened under it. The
+    window closes at the successor's first spec_issued: once budget is drawn
+    the honest path forward is another jump, never a rewrite. Revocation also
+    voids any registration that cited the adoption (reducer skips it), so the
+    frame falls back to the previous registration on the next replay."""
+    project = project.resolve()
+    if not reason.strip():
+        raise JumpError("revoke requires a non-empty reason")
+    state = journal.replay(project)
+    adoption = next((a for a in state.adoptions if a["event_id"] == adoption_event_id), None)
+    if adoption is None:
+        raise JumpError(
+            f"no active adoption {adoption_event_id!r} (unknown or already revoked)"
+        )
+    successor_generation = adoption["body"]["successor_generation"]
+    drawn = any(
+        e["kind"] == "spec_issued.v1" and e["body"]["generation"] == successor_generation
+        for e in state.events
+    )
+    if drawn:
+        raise JumpError(
+            f"generation {successor_generation} has already drawn budget (spec_issued exists); "
+            "an adoption with spent budget cannot be revoked — open another jump instead"
+        )
+    event = journal.append_event(
+        project,
+        "adoption_revoked.v1",
+        {"adoption_event_id": adoption_event_id, "reason": reason},
+    )
+    rolled_back = journal.replay(project)
+    return {
+        "status": "REVOKED",
+        "event_id": event["event_id"],
+        "generation_now": rolled_back.generation,
+        "contract_digest_now": rolled_back.contract_digest,
     }
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="ros.jump")
-    parser.add_argument("--project", type=Path, required=True)
-    parser.add_argument("--dossier", type=Path, required=True)
-    parser.add_argument("--successor", type=Path, required=True)
-    parser.add_argument("--review", type=Path, required=True)
-    parser.add_argument("--approval", type=Path, required=True)
+    parser = argparse.ArgumentParser(prog="jump")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    ad = sub.add_parser("adopt")
+    ad.add_argument("--project", type=Path, required=True)
+    ad.add_argument("--dossier", type=Path, required=True)
+    ad.add_argument("--successor", type=Path, required=True)
+    ad.add_argument("--review", type=Path, required=True)
+    ad.add_argument("--approval", type=Path, required=True)
+
+    rv = sub.add_parser("revoke")
+    rv.add_argument("--project", type=Path, required=True)
+    rv.add_argument("--adoption", required=True, help="adoption.v1 event id")
+    rv.add_argument("--reason", required=True)
+
     args = parser.parse_args(argv)
     try:
-        result = adopt(args.project, args.dossier, args.successor, args.review, args.approval)
+        if args.command == "adopt":
+            result = adopt(args.project, args.dossier, args.successor, args.review, args.approval)
+        else:
+            result = revoke(args.project, args.adoption, args.reason)
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
     except (JumpError, journal.JournalError) as error:

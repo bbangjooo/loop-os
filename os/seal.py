@@ -11,11 +11,11 @@ journal facts. It validates shape, never meaning — meaning stays in the file,
 readable by whoever replays the evidence.
 
 Instrument surface:
-    python -m ros.seal contract  --project DIR [--contract contract.toml]
-    python -m ros.seal run       --project DIR --summary PATH --ledger PATH
+    python os/seal.py contract  --project DIR [--contract contract.toml]
+    python os/seal.py run       --project DIR --summary PATH --ledger PATH
                                  [--trials PATH] [--migrated]
-    python -m ros.seal abandon   --project DIR --spec-digest DIGEST --reason TEXT
-    python -m ros.seal diagnosis --project DIR --file PATH [--run RUN_SEAL_EVENT_ID]
+    python os/seal.py abandon   --project DIR --spec-digest DIGEST --reason TEXT
+    python os/seal.py diagnosis --project DIR --file PATH [--run RUN_SEAL_EVENT_ID]
 """
 
 from __future__ import annotations
@@ -26,9 +26,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from . import journal
-from .aim import CONTRACT_NAME, ContractError, load_contract
-from ._canon import digest_file
+import journal
+from aim import CONTRACT_NAME, ContractError, load_contract
+from _canon import digest_file
 
 VERDICTS = ("SUPPORTED", "REJECTED", "INCONCLUSIVE")
 DIAGNOSIS_FIELDS = ("what_moved", "mechanism_interpretation", "counterfactual", "next_question")
@@ -50,17 +50,26 @@ def seal_contract(project: Path, contract_path: Path | None = None) -> dict[str,
     # whose digest matches this exact contract text (ordering by data, not by
     # a state machine).
     generation = contract["frame"]["generation"]
+    adoption_ref = None
     if state.generation is not None and generation > state.generation:
-        adopted = any(
-            a["body"]["successor_generation"] == generation
-            and a["body"]["successor_contract_digest"] == contract_digest
-            for a in state.adoptions
+        adopted = next(
+            (
+                a
+                for a in state.adoptions
+                if a["body"]["successor_generation"] == generation
+                and a["body"]["successor_contract_digest"] == contract_digest
+            ),
+            None,
         )
-        if not adopted:
+        if adopted is None:
             raise SealError(
                 f"registering generation {generation} requires an adoption event "
-                "citing this contract's digest (ros.jump)"
+                "citing this contract's digest (os/jump.py adopt)"
             )
+        # Recorded so a later revocation of the adoption also voids this
+        # registration in replay (the reducer skips registrations whose
+        # adoption_ref is revoked).
+        adoption_ref = adopted["event_id"]
     event = journal.append_event(
         project,
         "contract_registered.v1",
@@ -69,6 +78,7 @@ def seal_contract(project: Path, contract_path: Path | None = None) -> dict[str,
             "contract_digest": contract_digest,
             "generation": contract["frame"]["generation"],
             "class": contract["frame"]["class"],
+            **({"adoption_ref": adoption_ref} if adoption_ref else {}),
         },
     )
     return {"status": "CONTRACT_REGISTERED", "contract_digest": contract_digest, "event_id": event["event_id"]}
@@ -158,7 +168,7 @@ def seal_run(
         "event_id": event["event_id"],
         "spec_digest": spec_digest,
         "trials_denominator": body["trials_denominator"],
-        "next_required": "author a diagnosis file and seal it (ros.seal diagnosis)",
+        "next_required": "author a diagnosis file and seal it (os/seal.py diagnosis)",
     }
 
 
@@ -230,7 +240,7 @@ def seal_diagnosis(project: Path, file_path: Path, run_seal_id: str | None = Non
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="ros.seal")
+    parser = argparse.ArgumentParser(prog="seal")
     sub = parser.add_subparsers(dest="command", required=True)
 
     contract = sub.add_parser("contract")

@@ -10,8 +10,8 @@ Retrieval is exact-class by design: cross-class reads are the discovery
 lane's business (analogies live in notes), not memory's.
 
 Instrument surface:
-    python -m ros.memory extract  --project DIR
-    python -m ros.memory retrieve --project DIR --class CLASS
+    python os/memory.py extract  --project DIR
+    python os/memory.py retrieve --project DIR --class CLASS
 """
 
 from __future__ import annotations
@@ -22,8 +22,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from . import journal
-from ._canon import canonical_json, digest_bytes
+import journal
+from _canon import canonical_json, digest_bytes
 
 CLAIMS_NAME = "claims.jsonl"
 
@@ -98,7 +98,7 @@ def retrieve(project: Path, class_name: str) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="ros.memory")
+    parser = argparse.ArgumentParser(prog="memory")
     sub = parser.add_subparsers(dest="command", required=True)
     ext = sub.add_parser("extract")
     ext.add_argument("--project", type=Path, required=True)

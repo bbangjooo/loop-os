@@ -1,4 +1,4 @@
-# Research OS 2 — Kernel / OS / Application 재설계
+# Loop OS — Kernel / OS / Application 재설계
 
 > 상태: **설계 문서** (`EXPLORATORY`)
 >
@@ -84,7 +84,7 @@ outer loop (OS: 조준, 시간~일 단위, LLM 판단이 파일로 유입)
 - **C. 순서 = 데이터 의존.** 단계 B가 단계 A 뒤여야 한다면, B의 입력에 A의 출력 digest를 포함시킨다. phase enum 금지.
 - **D. 냄새 규칙.** 파일 + digest + replay 이상의 기억을 요구하는 검사가 생기면 설계 오류로 간주하고 중단한다.
 
-선택 사항: Research OS 2 자체를 kernel loop 밑에서 개발한다. 모듈 수·LOC를 `non_increasing_number` guard로 걸어 kernel이 자기 OS의 비대를 물리적으로 거부하게 한다.
+선택 사항: Loop OS 자체를 kernel loop 밑에서 개발한다. 모듈 수·LOC를 `non_increasing_number` guard로 걸어 kernel이 자기 OS의 비대를 물리적으로 거부하게 한다.
 
 ### 2.3 불변식 이행표
 

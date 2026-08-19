@@ -5,8 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from ros import aim, journal
-from ros.seal import SealError, seal_abandon, seal_diagnosis, seal_run
+import aim
+import journal
+from seal import SealError, seal_abandon, seal_diagnosis, seal_run
 
 
 def _summary(path: Path, spec_digest: str, **overrides) -> Path:

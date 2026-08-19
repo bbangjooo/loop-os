@@ -18,7 +18,7 @@ Screens (fail-closed, shape only):
     external_evidence note id in refs
 
 Instrument surface:
-    python -m ros.note --project DIR --kind KIND --body JSON_FILE [--refs id ...]
+    python os/note.py --project DIR --kind KIND --body JSON_FILE [--refs id ...]
 """
 
 from __future__ import annotations
@@ -30,8 +30,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from . import journal
-from ._canon import canonical_json, digest_bytes
+import journal
+from _canon import canonical_json, digest_bytes
 
 NOTES_NAME = "notes.jsonl"
 
@@ -131,7 +131,7 @@ def load_notes(project: Path) -> list[dict[str, Any]]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="ros.note")
+    parser = argparse.ArgumentParser(prog="note")
     parser.add_argument("--project", type=Path, required=True)
     parser.add_argument("--kind", required=True)
     parser.add_argument("--body", type=Path, required=True, help="JSON file authored by the agent")

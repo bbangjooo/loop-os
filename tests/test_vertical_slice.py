@@ -11,12 +11,13 @@ import subprocess
 import sys
 from pathlib import Path
 
-from ros import aim, journal
-from ros.seal import seal_diagnosis, seal_run
+import aim
+import journal
+from seal import seal_diagnosis, seal_run
 
 from conftest import _git
 
-KERNEL = Path(__file__).parents[1] / "kernel" / "loop" / "experiment_loop.py"
+KERNEL = Path(__file__).parents[1] / "kernel" / "loop.py"
 
 
 def _run_kernel(project: Path, spec_rel: str) -> None:
@@ -94,7 +95,7 @@ def test_instruments_work_over_argv(registered_project: Path) -> None:
     """The agent drives instruments as subprocesses; the JSON surface must hold."""
     project = registered_project
     result = subprocess.run(
-        [sys.executable, "-m", "ros.journal", "status", "--project", str(project)],
+        [sys.executable, "os/journal.py", "status", "--project", str(project)],
         capture_output=True,
         text=True,
         cwd=Path(__file__).parents[1],

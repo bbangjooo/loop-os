@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from ros import journal
-from ros.seal import seal_contract
+import journal
+from seal import seal_contract
 
 CONTRACT_TEMPLATE = """\
 schema = "ros2-contract-v1"
@@ -102,7 +102,7 @@ def write_contract(project: Path, objective: Path, agent: Path, total: int = 6, 
 
 @pytest.fixture
 def registered_project(project: Path, objective: Path, agent: Path) -> Path:
-    """Bootstrapped journal + registered contract, ready for ros.aim."""
+    """Bootstrapped journal + registered contract, ready for os/aim.py."""
     write_contract(project, objective, agent)
     journal.append_event(project, "bootstrap.v1", {"project_id": "toy", "lineage": []})
     journal.ensure_gitignored(project)

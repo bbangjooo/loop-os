@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from ros import journal
-from ros._canon import canonical_json
+import journal
+from _canon import canonical_json
 
 
 def _boot(project: Path) -> None:
@@ -127,6 +127,42 @@ def test_reduce_state_tracks_pending_obligations(project: Path) -> None:
     )
     state = journal.replay(project)
     assert not state.pending_diagnoses
+
+
+def test_anchor_catches_the_tail_edit(project: Path) -> None:
+    """The blind spot documented above closes once the head is anchored: a
+    canonical tail edit after anchoring makes the anchored head match no
+    journal line, and verify fails closed."""
+    _boot(project)
+    journal.append_event(project, "note_sealed.v1", {"n": 1})
+    journal.write_anchor(project)
+    path = journal.journal_path(project)
+    raw = path.read_text(encoding="utf-8")
+    path.write_text(raw.replace('"n":1', '"n":9'), encoding="utf-8")
+    with pytest.raises(journal.JournalError, match="anchor mismatch"):
+        journal.check_anchor(project)
+
+
+def test_anchor_tolerates_growth_after_anchoring(project: Path) -> None:
+    _boot(project)
+    journal.append_event(project, "note_sealed.v1", {"n": 1})
+    journal.write_anchor(project)
+    journal.append_event(project, "note_sealed.v1", {"n": 2})
+    result = journal.check_anchor(project)
+    assert result == {"anchored": True, "anchored_events": 2, "events_since_anchor": 1}
+
+
+def test_anchor_refuses_a_broken_chain(project: Path) -> None:
+    _boot(project)
+    journal.append_event(project, "note_sealed.v1", {"n": 1})
+    path = journal.journal_path(project)
+    lines = path.read_text(encoding="utf-8").splitlines()
+    middle = json.loads(lines[0])
+    middle["body"]["project_id"] = "evil"
+    lines[0] = canonical_json(middle)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    with pytest.raises(journal.JournalError):
+        journal.write_anchor(project)  # never anchor what does not verify
 
 
 def test_abandon_clears_pending_but_keeps_the_draw(project: Path) -> None:

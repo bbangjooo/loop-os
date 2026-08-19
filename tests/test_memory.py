@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from ros import memory
+import memory
 from tests.test_steer import _cycle
 
 

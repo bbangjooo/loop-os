@@ -1,19 +1,15 @@
 [project]
-name = "research-os2"
+name = "loop-os"
 version = "0.1.0"
-description = "Research OS 2 — kernel/OS/application research system over the experiment loop"
+description = "Loop OS — kernel/OS/application research system over the experiment loop"
 requires-python = ">=3.11"
 dependencies = ["pyyaml>=6.0"]
 
 [dependency-groups]
 dev = ["pytest>=8.0"]
 
-[build-system]
-requires = ["setuptools>=68"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools.packages.find]
-include = ["ros*"]
+[tool.uv]
+package = false
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
+pythonpath = ["os", "."]

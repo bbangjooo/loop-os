@@ -14,8 +14,8 @@ Projections:
   dossier       everything a jump needs, keyed by one rival_draft note id
 
 Instrument surface:
-    python -m ros.steer {status|frame-health|residual} --project DIR
-    python -m ros.steer dossier --project DIR --rival NOTE_ID
+    python os/steer.py {status|frame-health|residual} --project DIR
+    python os/steer.py dossier --project DIR --rival NOTE_ID
 """
 
 from __future__ import annotations
@@ -27,7 +27,8 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-from . import journal, note
+import journal
+import note
 
 CLASS_CLOSURE_THRESHOLD = 3  # REJECTED diagnoses that close a class (old-world rule)
 
@@ -53,7 +54,7 @@ AUTHORING_OBLIGATIONS = [
     {"step": "successor_contract", "owner": "author", "artifact": "a ros2-contract-v1 file with generation = current + 1"},
     {"step": "independent_review", "owner": "independent_reviewer", "artifact": "review JSON authored in a separate session/model route"},
     {"step": "human_approval", "owner": "designated_human", "artifact": "approval JSON written by the human"},
-    {"step": "adoption", "owner": "author", "artifact": "ros.jump citing the dossier, successor, review, approval digests"},
+    {"step": "adoption", "owner": "author", "artifact": "os/jump.py adopt citing the dossier, successor, review, approval digests"},
 ]
 
 
@@ -212,7 +213,7 @@ def dossier(project: Path, rival_note_id: str) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="ros.steer")
+    parser = argparse.ArgumentParser(prog="steer")
     sub = parser.add_subparsers(dest="command", required=True)
     for name in ("status", "frame-health", "residual"):
         cmd = sub.add_parser(name)
