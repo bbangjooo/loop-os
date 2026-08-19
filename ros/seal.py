@@ -59,6 +59,13 @@ def seal_contract(project: Path, contract_path: Path | None = None) -> dict[str,
     return {"status": "CONTRACT_REGISTERED", "contract_digest": contract_digest, "event_id": event["event_id"]}
 
 
+def _registered_class(state: journal.JournalState) -> str | None:
+    for event in reversed(state.events):
+        if event["kind"] == "contract_registered.v1":
+            return event["body"].get("class")
+    return None
+
+
 def seal_run(
     project: Path,
     summary_path: Path,
@@ -100,8 +107,13 @@ def seal_run(
     if trials_path is not None:
         trials_count = sum(1 for line in trials_path.read_text(encoding="utf-8").splitlines() if line.strip())
 
+    # The frame that governs this run, so projections can aggregate per class
+    # without re-reading the contract. Falls back to the issuance event.
+    issued_body = issued["body"] if issued is not None else {}
     body: dict[str, Any] = {
         "origin": "migration" if migrated else "issued",
+        "class": issued_body.get("class") or _registered_class(state),
+        "generation": issued_body.get("generation") or state.generation,
         "spec_digest": spec_digest,
         "loop_id": summary.get("loop_id"),
         "run_id": summary.get("run_id"),
@@ -192,6 +204,8 @@ def seal_diagnosis(project: Path, file_path: Path, run_seal_id: str | None = Non
         {
             "run_seal_id": run_seal_id,
             "spec_digest": run_event["body"]["spec_digest"],
+            "class": run_event["body"].get("class"),
+            "generation": run_event["body"].get("generation"),
             "diagnosis_path": str(file_path),
             "diagnosis_digest": digest_file(file_path),
             "verdict": verdict,
