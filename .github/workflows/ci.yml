@@ -1,0 +1,24 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - name: OS instrument suite
+        run: uv run python -m pytest tests/ -q
+      - name: Kernel contract suite (vendored)
+        run: uv run python -m pytest kernel/tests/ -q
+      - name: Benchmark gate (red team, capability, honesty, resume)
+        run: uv run python -m pytest bench/ -q
+      - name: Measurement smoke (scripted baseline, governance floors)
+        run: uv run python bench/run.py --agent scripted

@@ -23,7 +23,7 @@ Requirements: Python ≥ 3.11, git, [uv](https://docs.astral.sh/uv/), and an age
 git clone https://github.com/bbangjooo/loop-os.git ~/loop-os
 cd ~/loop-os
 uv sync
-uv run pytest -q && uv run pytest kernel/tests/ -q   # 66 OS + 72 kernel tests
+uv run python -m pytest tests/ kernel/tests/ bench/ -q   # OS + kernel + benchmark gate
 ```
 
 Optionally install the agent skill so your harness knows how to drive the instruments:
@@ -153,6 +153,17 @@ The design document is [docs/design.md](docs/design.md); a rendered architecture
 - The chain's one blind spot (a canonical edit to the newest line) is closed by **anchoring**: the verified head digest is written to a git-tracked file and committed, so rewriting sealed history breaks against git history.
 - Anti-gaming is digests, budgets, and reverts — never permissions or trust. The contract itself is integrity-pinned during runs, so the frame cannot drift mid-climb.
 - Deployment, releases, capital allocation, and live trading have no vocabulary here: there is no field in any schema that could authorize them.
+
+## Benchmark
+
+The system's claims are measured, not assumed — see [bench/README.md](bench/README.md). The deterministic gate (red-team containment, capability floor, denominator honesty, crash resume) runs in CI on every push and PR to main. The measurement runner produces a scoreboard on synthetic problems with known ground truth, locally, with the scripted baseline or a real LLM agent:
+
+```bash
+uv run python bench/run.py --agent scripted
+uv run python bench/run.py --agent claude --model claude-opus-5
+```
+
+What the benchmark cannot prove — real research efficacy on non-synthetic domains — is documented there honestly.
 
 ## License
 
