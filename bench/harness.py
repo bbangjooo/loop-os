@@ -7,6 +7,7 @@ Used by the gate tests (pytest) and the measurement runner (bench/run.py).
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 import time
@@ -119,7 +120,10 @@ def make_project(
     for name, body in files.items():
         path = project / name
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(body, encoding="utf-8")
+        if isinstance(body, bytes):
+            path.write_bytes(body)
+        else:
+            path.write_text(body, encoding="utf-8")
     (project / ".gitignore").write_text(".journal/\n.bench-cache/\n", encoding="utf-8")
 
     guard_blocks = "\n".join(
@@ -183,6 +187,7 @@ def drive(project: Path, tmp_dir: Path, max_cycles: int = 8) -> dict:
     """Run full outer-loop cycles until the target is reached or the budget
     refuses. Returns raw material for metrics."""
     cycles = []
+    declared_total: list[int] = []
     started = time.monotonic()
     exhausted = False
     for index in range(max_cycles):
@@ -197,12 +202,22 @@ def drive(project: Path, tmp_dir: Path, max_cycles: int = 8) -> dict:
         summary_file = project / Path(issued["spec_path"]).parent / "summary.json"
         summary = json.loads(summary_file.read_text(encoding="utf-8"))
         trials = project / ".bench-cache" / "trials.jsonl"
+        # Rule (b): an agent that evaluated anything outside the instrumented
+        # evaluator must declare it as offline_evals=N in its SUMMARY line;
+        # declarations join the sealed multiple-testing denominator.
+        declared = sum(
+            int(m)
+            for record in read_ledger(project, issued["loop_id"])
+            for m in re.findall(r"offline_evals=(\d+)", record.get("agent_summary") or "")
+        )
         seal_run(
             project,
             summary_file,
             project / ".git" / "experiment-loop" / issued["loop_id"] / "ledger.jsonl",
             trials if trials.exists() else None,
+            declared_evaluations=declared or None,
         )
+        declared_total.append(declared)
         auto_diagnosis(project, tmp_dir, summary, index)
         cycles.append({"issued": issued, "summary": summary})
         if summary.get("stopped") == "target_reached":
@@ -210,6 +225,7 @@ def drive(project: Path, tmp_dir: Path, max_cycles: int = 8) -> dict:
     state = journal.replay(project)
     return {
         "cycles": cycles,
+        "declared_offline": sum(declared_total),
         "budget_exhausted": exhausted,
         "wall_seconds": round(time.monotonic() - started, 2),
         "state": state,

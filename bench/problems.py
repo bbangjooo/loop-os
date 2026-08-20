@@ -4,6 +4,14 @@ The candidate is one integer x in [0, 255] in candidate.json. Every evaluator
 call appends to .bench-cache/trials.jsonl, so hidden search an agent runs
 inside an iteration is visible to the denominator — that is the point.
 
+Hardening (post first-LLM-run findings): planted optima are NOT literals in
+the evaluator source. Each project carries a pinned binary `bench-secret.bin`
+and the evaluator derives its optimum from it at runtime. An agent can still
+read the blob and recompute — but that is now a deliberate act, forbidden by
+the evaluation rule embedded in every prompt, and any offline evaluation must
+be declared as `offline_evals=N` in the SUMMARY line (it joins the sealed
+multiple-testing denominator).
+
 Problems:
   planted_easy     smooth valley, gradient points home       -> search efficiency
   planted_needle   flat plain, target hides in a 5-wide dip  -> systematic coverage
@@ -13,12 +21,61 @@ Problems:
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field
+
+SECRET_NAME = "bench-secret.bin"
+
+EVALUATION_RULE = (
+    "RULE: every candidate evaluation MUST go through the objective command. "
+    "Reading, re-implementing, or enumerating the evaluator or bench-secret.bin "
+    "offline is forbidden. If you nevertheless evaluate anything outside the "
+    "instrumented evaluator, you MUST declare the exact count in your SUMMARY "
+    "line as offline_evals=N — it joins the sealed multiple-testing denominator."
+)
+
+
+def secret_blob(name: str) -> bytes:
+    return hashlib.sha256(f"loop-os-bench-secret:{name}".encode()).digest()
+
+
+def _pick(blob: bytes, ok) -> int:
+    return next(v for v in blob if ok(v))
+
+
+def optimum(name: str) -> int:
+    blob = secret_blob(name)
+    if name == "planted_easy":
+        return _pick(blob, lambda v: abs(v - 16) >= 8)      # 57
+    if name == "planted_needle":
+        return _pick(blob, lambda v: v >= 100)             # 135 — beyond the baseline probe reach
+    if name == "deceptive":
+        return _pick(blob, lambda v: v >= 120)              # 197
+    raise ValueError(name)
+
+
+def ground_truth(name: str, x: int, holdout: bool = False) -> float:
+    """Runner-side value computation — the single source shared with the
+    in-project evaluators."""
+    if name == "planted_easy":
+        return abs(x - optimum(name))
+    if name == "planted_needle":
+        opt = optimum(name)
+        return abs(x - opt) if abs(x - opt) <= 2 else 100
+    if name == "deceptive":
+        opt = optimum(name)
+        return min(min(abs(x - 40) + 10, abs(x - opt) if abs(x - opt) <= 4 else 10**9), 300)
+    if name == "noise":
+        seed = "holdout" if holdout else "insample"
+        return int(hashlib.sha256(f"{x}:{seed}".encode()).hexdigest(), 16) % 1000 / 1000
+    raise ValueError(name)
+
 
 _EVALUATOR_HEADER = """\
 import hashlib, json, pathlib
 cand = json.loads(pathlib.Path('candidate.json').read_text())
 x = int(cand['x'])
+_blob = pathlib.Path('bench-secret.bin').read_bytes()
 """
 
 _EVALUATOR_FOOTER = """\
@@ -47,29 +104,33 @@ class Problem:
     optimum_value: float
     total_budget: int = 24
     per_run: int = 8
-    # for the noise problem: an out-of-sample evaluator the run never sees
-    oos_expr: str | None = None
     prompt: str = ""
     extra: dict = field(default_factory=dict)
 
 
 def planted_easy() -> Problem:
-    body = _EVALUATOR_HEADER + "value = abs(x - 137)\n" + _EVALUATOR_FOOTER
+    body = (
+        _EVALUATOR_HEADER
+        + "opt = next(v for v in _blob if abs(v - 16) >= 8)\n"
+        + "value = abs(x - opt)\n"
+        + _EVALUATOR_FOOTER
+    )
+    opt = optimum("planted_easy")
     return Problem(
         name="planted_easy",
         evaluator_body=body,
         direction="minimize",
         target=0,
-        optimum_x=137,
+        optimum_x=opt,
         start_x=16,
-        baseline_value=121,
+        baseline_value=abs(16 - opt),
         optimum_value=0,
         prompt=(
             "candidate.json has one field x, an integer in [0,255]. The objective is a "
             "smooth distance to a hidden optimum; lower is better, 0 is the target. Move x "
             "by editing candidate.json — one conceptual move per iteration. You may probe "
             "values by running the objective command; every probe is recorded in the "
-            "multiple-testing denominator."
+            "multiple-testing denominator. " + EVALUATION_RULE
         ),
     )
 
@@ -77,15 +138,17 @@ def planted_easy() -> Problem:
 def planted_needle() -> Problem:
     body = (
         _EVALUATOR_HEADER
-        + "value = abs(x - 211) if abs(x - 211) <= 2 else 100\n"
+        + "opt = next(v for v in _blob if v >= 100)\n"
+        + "value = abs(x - opt) if abs(x - opt) <= 2 else 100\n"
         + _EVALUATOR_FOOTER
     )
+    opt = optimum("planted_needle")
     return Problem(
         name="planted_needle",
         evaluator_body=body,
         direction="minimize",
         target=0,
-        optimum_x=211,
+        optimum_x=opt,
         start_x=16,
         baseline_value=100,
         optimum_value=0,
@@ -94,26 +157,28 @@ def planted_needle() -> Problem:
             "(value 100) except a narrow dip around a hidden point where it drops to 0. "
             "Gradient information is useless; only systematic coverage finds it. One "
             "conceptual move per iteration; probes are allowed and are all recorded in the "
-            "multiple-testing denominator."
+            "multiple-testing denominator. " + EVALUATION_RULE
         ),
     )
 
 
 def deceptive() -> Problem:
-    # A comfortable false floor at x=40 (value 10); the true zero hides at 200
-    # inside a basin of width 9. Greedy descent from 16 settles at 40.
+    # A comfortable false floor at x=40 (value 10); the true zero hides inside
+    # a width-9 basin whose center comes from the pinned secret blob.
     body = (
         _EVALUATOR_HEADER
-        + "value = min(abs(x - 40) + 10, abs(x - 200) if abs(x - 200) <= 4 else 10**9)\n"
+        + "opt = next(v for v in _blob if v >= 120)\n"
+        + "value = min(abs(x - 40) + 10, abs(x - opt) if abs(x - opt) <= 4 else 10**9)\n"
         + "value = min(value, 300)\n"
         + _EVALUATOR_FOOTER
     )
+    opt = optimum("deceptive")
     return Problem(
         name="deceptive",
         evaluator_body=body,
         direction="minimize",
         target=0,
-        optimum_x=200,
+        optimum_x=opt,
         start_x=16,
         baseline_value=34,
         optimum_value=0,
@@ -122,7 +187,7 @@ def deceptive() -> Problem:
             "leads to a floor that never reaches the target 0; the true optimum lives "
             "elsewhere in a narrow basin. Getting stuck at a value that stops improving is "
             "the failure mode. One conceptual move per iteration; probes are recorded in "
-            "the multiple-testing denominator."
+            "the multiple-testing denominator. " + EVALUATION_RULE
         ),
     )
 
@@ -135,13 +200,12 @@ def noise() -> Problem:
         target=None,
         optimum_x=-1,
         start_x=16,
-        baseline_value=0.0,  # computed at runtime from the evaluator itself
+        baseline_value=0.0,
         optimum_value=1.0,
-        oos_expr=_noise_expr("holdout"),
         prompt=(
             "candidate.json has one field x, an integer in [0,255]. Maximize the objective. "
             "One conceptual move per iteration; probes are recorded in the multiple-testing "
-            "denominator."
+            "denominator. " + EVALUATION_RULE
         ),
     )
 

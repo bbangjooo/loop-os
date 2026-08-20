@@ -102,10 +102,26 @@ was built to surface, and the agent's own logs state them plainly:
    The governance floors held: `false_claim=False`, and the OOS collapse was
    recorded (is=+0.276, oos=−0.379) exactly as with the scripted scanner.
 
-Consequence: for LLM agents, treat the planted rows as leak-exploitation
-evidence, not search scores, until the problems are hardened; and read
-`evaluations_logged` as a **lower bound** on the true denominator whenever the
-objective is locally recomputable — in real applications too.
+Both findings are now addressed (same day):
+
+- **(a) hardened problems** — planted optima are no longer literals: each
+  project carries a pinned `bench-secret.bin` and the evaluator derives its
+  optimum from it at runtime. Reading the blob is still physically possible,
+  but it is now a deliberate act covered by the rule below, not an accident of
+  a readable formula.
+- **(b) the evaluation rule + declared denominator** — every prompt embeds the
+  rule (evaluate only through the objective command; declare any offline
+  evaluation as `offline_evals=N` in the SUMMARY line), the harness parses
+  declarations out of the ledger, and `seal run --declared-evals N` folds them
+  into the sealed denominator (a declaration can only raise it). For real
+  applications the same clause belongs in the contract prompt — see SKILL.md
+  rule 7.
+
+`evaluations_logged` remains a **lower bound** on the true denominator for any
+locally recomputable objective; the declared count narrows, but cannot close,
+that gap for a non-compliant agent. What the hardened benchmark now measures
+for an LLM agent is therefore *rule compliance* plus search skill, which is
+exactly what a real deployment relies on.
 
 ## What this benchmark still cannot prove
 

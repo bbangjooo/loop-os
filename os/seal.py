@@ -97,6 +97,7 @@ def seal_run(
     ledger_path: Path,
     trials_path: Path | None = None,
     migrated: bool = False,
+    declared_evaluations: int | None = None,
 ) -> dict[str, Any]:
     project = project.resolve()
     for label, path in (("summary", summary_path), ("ledger", ledger_path)):
@@ -153,9 +154,16 @@ def seal_run(
         "stopped": summary.get("stopped"),
         "objective": summary.get("objective"),
         "trials_denominator": max(
-            ledger_iterations, trials_count if trials_count is not None else 0
+            ledger_iterations,
+            trials_count if trials_count is not None else 0,
+            declared_evaluations if declared_evaluations is not None else 0,
         ),
     }
+    if declared_evaluations is not None:
+        # Agent-declared evaluations that never touched the instrumented
+        # evaluator (offline recomputation). A declaration can only raise the
+        # denominator, never lower it.
+        body["declared_evaluations"] = declared_evaluations
     if issued is not None:
         body["spec_issued_id"] = issued["event_id"]
     if trials_path is not None:
@@ -253,6 +261,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--ledger", type=Path, required=True)
     run.add_argument("--trials", type=Path, default=None)
     run.add_argument("--migrated", action="store_true")
+    run.add_argument("--declared-evals", type=int, default=None)
 
     abandon = sub.add_parser("abandon")
     abandon.add_argument("--project", type=Path, required=True)
@@ -269,7 +278,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "contract":
             result = seal_contract(args.project, args.contract)
         elif args.command == "run":
-            result = seal_run(args.project, args.summary, args.ledger, args.trials, args.migrated)
+            result = seal_run(
+                args.project, args.summary, args.ledger, args.trials, args.migrated,
+                declared_evaluations=args.declared_evals,
+            )
         elif args.command == "abandon":
             result = seal_abandon(args.project, args.spec_digest, args.reason)
         else:

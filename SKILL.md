@@ -24,6 +24,11 @@ description: Loop OS의 outer loop 프로그램. agent(Claude Code/Codex)가 계
    generation의 정직한 종착 상태다 — successor generation(jump)만이 예산을 다시 연다.
 6. seal 사이클을 마칠 때마다 `os/journal.py anchor`를 실행하고 `.journal-anchor.json`을
    커밋한다 — head가 git 역사에 앵커되어야 chain의 tail-edit 사각이 닫힌다.
+7. objective가 로컬에서 재계산 가능한 프로젝트라면, 계약 프롬프트에 **평가 계기 규칙**을
+   반드시 넣는다: "모든 평가는 objective 명령을 통해서만; 오프라인 재계산·열거 금지;
+   그럼에도 계기 밖에서 평가했다면 SUMMARY 줄에 `offline_evals=N`으로 선언". 선언이
+   발견되면 `os/seal.py run --declared-evals N`으로 봉인한다 — 선언은 분모를 올릴 수만
+   있다. (근거: bench 첫 LLM run에서 실증된 분모 우회, bench/README.md findings.)
 
 ## 사이클
 

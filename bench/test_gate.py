@@ -29,7 +29,7 @@ def test_planted_easy_is_fully_recovered(tmp_path: Path) -> None:
     row = run_problem(P.planted_easy(), "scripted", "", tmp_path)
     assert row["reached"] is True
     assert row["recovery"] == 1.0
-    assert row["final_x"] == 137
+    assert row["final_x"] == P.optimum("planted_easy")
     assert row["denominator_covers_ledger"] is True
 
 
