@@ -38,29 +38,29 @@ The installer adds four slash commands to Claude Code. Run them from inside the 
 /loop-os:run-example
 ```
 
-One complete cycle on a throwaway project — nothing of yours is touched. `value.txt` holds a number, lower is better, and a scripted stand-in plays the agent. Every step calls the real instruments:
+One complete cycle on a throwaway project — nothing of yours is touched, no API key needed. The problem is a real one: twelve delivery stops and a route that crosses itself. A scripted stand-in plays the agent, reversing one randomly chosen segment per iteration with no idea whether that helps. Every step calls the real instruments:
 
 ```
 == aim — compile the contract into a kernel spec
-{ "status": "SPEC_ISSUED", "loop_id": "hill-descent-g1-001", "draw": 3, "budget_remaining": 3,
+{ "status": "SPEC_ISSUED", "loop_id": "delivery-round-g1-001", "draw": 8, "budget_remaining": 8,
   "note": "commit the spec before running; the kernel refuses an untracked in-worktree spec" }
 
 == run the kernel — the only step that executes anything
-  iteration 1  accepted  10 -> 9      iteration 2  accepted  9 -> 8      iteration 3  accepted  8 -> 7
+  1 accepted  2015.947 -> 1893.706      5 rejected  1608.642 -> 1608.642
+  2 accepted  1893.706 -> 1891.481      6 rejected  1608.642 -> 1608.642
+  3 accepted  1891.481 -> 1608.642      7 accepted  1608.642 -> 1525.805
+  4 rejected  1608.642 -> 1646.536      8 rejected  1525.805 -> 1627.264
 
 == seal the run
-{ "status": "RUN_SEALED", "trials_denominator": 3,
+{ "status": "RUN_SEALED", "trials_denominator": 8,
   "next_required": "author a diagnosis file and seal it (os/seal.py diagnosis)" }
 
-== anchor the journal head into git
-{ "status": "ANCHORED", "head": "e9ee1b01548c…", "events": 5 }
-
 == status — where the project now stands
-{ "status": "OK", "generation": 1, "runs_sealed": 1, "drawn_by_generation": { "1": 3 },
+{ "status": "OK", "generation": 1, "runs_sealed": 1, "drawn_by_generation": { "1": 8 },
   "next_required": "issue the next spec (os/aim.py)" }
 ```
 
-The objective fell 10 → 7 in three accepted iterations, the guard passed on each one, and the generation has 3 of its 6 iterations left — drawn up front, and gone whether or not the run had worked. What the example deliberately doesn't show: a real agent, a real question, and a REJECTED verdict. Its mechanism is true by construction, which a real contract never is.
+The round got 24% shorter, but four of the eight proposals made it worse and were reverted by `git reset --hard` — the loop is real, not a scripted descent. The sealed denominator is 8, not 4, because the budget counts what you tried; and the generation has 8 of its 16 iterations left, drawn up front and gone whether or not the run had worked.
 
 ### 2. Bootstrap your own project
 

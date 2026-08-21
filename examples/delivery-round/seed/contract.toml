@@ -1,0 +1,36 @@
+schema = "ros2-contract-v1"
+integrity = ["cities.json", "objective.py", "guard_tour_valid.py"]
+
+[project]
+id = "delivery-round"
+
+[frame]
+generation = 1
+class = "two_opt_descent"
+mechanism = "The current round crosses itself, and a crossing can always be removed by reversing the segment between the two crossing edges. If that is true here, random 2-opt proposals should shorten the round often enough to matter; falsified if accepted moves stop appearing while the tour still crosses itself."
+
+[budget]
+iterations_total = 16
+
+[agent]
+command = ["python3", "agent.py"]
+timeout_seconds = 60
+
+[[stages]]
+id = "main"
+prompt = "Reverse one segment of the tour in tour.json. Keep every city exactly once."
+iterations = 8
+
+[stages.objective]
+command = ["python3", "objective.py"]
+direction = "minimize"
+margin = 0.001
+target = 621.0
+timeout_seconds = 30
+proxy_license = "example contract clause 1: total tour length is the goal itself — the driver pays for distance, so no proxy stands between the number and the thing being optimized."
+
+[[stages.guards]]
+id = "tour-valid"
+command = ["python3", "guard_tour_valid.py"]
+kind = "exit_zero"
+timeout_seconds = 30

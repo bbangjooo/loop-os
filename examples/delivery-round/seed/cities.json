@@ -1,0 +1,17 @@
+{
+  "comment": "Twelve stops on a delivery round. Integrity-pinned: the agent may reorder the tour, never move a city.",
+  "cities": [
+    {"name": "depot",    "x":   0.0, "y":   0.0},
+    {"name": "harbor",   "x":  86.6, "y":  50.0},
+    {"name": "mill",     "x":  50.0, "y":  86.6},
+    {"name": "quarry",   "x":   0.0, "y": 100.0},
+    {"name": "orchard",  "x": -50.0, "y":  86.6},
+    {"name": "foundry",  "x": -86.6, "y":  50.0},
+    {"name": "market",   "x": -99.0, "y":  -2.0},
+    {"name": "tannery",  "x": -86.6, "y": -50.0},
+    {"name": "brewery",  "x": -50.0, "y": -86.6},
+    {"name": "kiln",     "x":   2.0, "y": -99.0},
+    {"name": "smithy",   "x":  50.0, "y": -86.6},
+    {"name": "granary",  "x":  86.6, "y": -50.0}
+  ]
+}
