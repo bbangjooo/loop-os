@@ -1,6 +1,6 @@
-# Loop OS — evidence-first research with an untrusted agent
+# Loop OS — Make your dumb loop SMART
 
-A three-layer system for running bounded research with an LLM agent, without ever trusting the agent:
+A three-layer system that takes a dumb hill-climbing loop and makes it smart — without ever trusting the agent:
 
 - **Kernel** (`kernel/loop.py`) — a *dumb loop*. Measure, mutate once, run guards, commit or revert — one scalar objective, nothing else. The only thing that executes.
 - **OS** (`os/`) — the *skills the dumb loop lacks*. Seven deterministic instruments for aiming, sealing evidence, steering, memory, and jumping between hypothesis frames.
@@ -12,12 +12,12 @@ The LLM proposes directions and interprets results, but its judgment enters the 
 
 ## Why
 
-- **The kernel climbs one number — it can't ask whether the number is worth climbing.** The OS makes every objective cite the contract clause that licenses it as a proxy (`proxy_license`); the real verdict happens outside, on data the system can't read.
-- **The kernel spends iterations — it can't police how many.** The OS turns budgets into multiple-testing contracts: iterations are drawn up front and never refunded, and abandoned runs still count.
-- **The kernel reverts bad changes — it can't remember what happened.** The OS seals every run, diagnosis, and contract into a hash-chained journal, anchored in git so history can't be quietly rewritten.
-- **The kernel can't change its own frame.** The OS owns jumps: a dead hypothesis class is replaced only through a reviewed, human-approved, sealed adoption.
-- **Nothing trusts the agent.** Its judgment enters only as digest-sealed files — if the file isn't there, the system structurally stops.
-- **Application-agnostic.** The kernel and OS know nothing about the domain — any repo with a contract and an evaluator runs unchanged, whether the problem is quant research, ML tuning, or refactoring.
+- **A dumb loop climbs one number — it can't ask whether the number is worth climbing.** The OS makes every objective cite the contract clause that licenses it as a proxy (`proxy_license`); the real verdict happens outside, on data the system can't read.
+- **A dumb loop spends iterations — it can't police how many.** The OS turns budgets into multiple-testing contracts: iterations are drawn up front and never refunded, and abandoned runs still count.
+- **A dumb loop reverts bad changes — it can't remember what happened.** The OS seals every run, diagnosis, and contract into a hash-chained journal, anchored in git so history can't be quietly rewritten.
+- **A dumb loop can't change its own frame.** The OS owns jumps: a dead hypothesis class is replaced only through a reviewed, human-approved, sealed adoption.
+- **Smart doesn't mean trusting the agent.** The loop is smart because the agent's judgment enters as digest-sealed, budgeted, reversible files — if the file isn't there, the system structurally stops.
+- **Any loop, any problem.** The kernel and OS know nothing about the domain — any repo with a contract and an evaluator runs unchanged, whether the problem is quant research, ML tuning, or refactoring.
 
 ## Getting Started
 
