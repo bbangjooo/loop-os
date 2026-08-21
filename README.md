@@ -10,6 +10,17 @@ The LLM proposes directions and interprets results, but its judgment enters the 
 
 ![Loop OS layers](docs/layers.png)
 
+## Loop only vs Loop OS
+
+Same kernel, same objective (route length), same proposal stream — the only difference is the OS around the loop ([docs/loop-vs-os.py](docs/loop-vs-os.py) reproduces this):
+
+![kernel (loop only) vs kernel + OS](docs/loop-vs-os.png)
+
+- **Both climbs are identical until iteration 30.** The kernel optimizes with the move class its contract started with — swapping adjacent stops — and lands in that class's local optimum at 405.
+- **The loop alone cannot know its strategy is exhausted.** Accepted moves per run decay 3 → 1 → 0, but the kernel has no concept of "this frame is done" — it burns the remaining budget proposing and rejecting forever.
+- **The OS reads the same rejections as evidence.** Three all-rejected runs close the hypothesis class; a jump adopts a new frame (reverse a segment, 2-opt); the same objective falls another 31%, to 310.
+- **The kernel finds the best answer inside one frame. The OS decides which frame deserves the budget.** That division is the whole design.
+
 ## Why
 
 - **A dumb loop climbs one number — it can't ask whether the number is worth climbing.** The OS makes every objective cite the contract clause that licenses it as a proxy (`proxy_license`); the real verdict happens outside, on data the system can't read.
