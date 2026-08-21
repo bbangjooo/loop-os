@@ -1,43 +1,40 @@
 # Example — delivery round
 
-A real optimization problem, small enough to read in a sitting: twelve stops, one
-truck, and a route that crosses itself.
+The same kernel run twice on the same problem — once bare, once governed by the
+OS. Fixed objective, fixed proposal seeds; the only difference is the OS.
 
 ```bash
 sh examples/delivery-round/run.sh [target-dir]
 ```
 
-- `cities.json` — twelve fixed coordinates. Integrity-pinned: the agent may reorder
-  the round, never move a city.
-- `tour.json` — the order the driver currently uses. The agent edits only this.
-- `objective.py` — total round-trip distance, printed as one number. Lower is better.
-- `guard_tour_valid.py` — every city still visited exactly once. Without it, deleting
-  stops would look like progress.
-- `agent.py` — a scripted stand-in for the LLM: it reverses one randomly chosen
-  segment (a 2-opt move) and has **no idea** whether that helps.
+The problem: find the shortest route through 12 delivery stops. The agent is a
+scripted stand-in for the LLM (no API key needed), seeded per iteration from
+`EXPERIMENT_LOOP_ID` and `EXPERIMENT_LOOP_ITERATION`, which the kernel sets for
+the agent process.
 
-That last point is what makes this a real loop rather than a demo. The agent is not
-an oracle; roughly half its proposals lengthen the round, and the kernel throws those
-away with `git reset --hard`. The seed comes from `EXPERIMENT_LOOP_ITERATION`, which
-the kernel hands the agent process — a rejected iteration is reverted, so without it
-the next attempt would re-propose the same rejected move forever.
+**Loop only** (`seed/contract-loop-only.toml`): the adjacent-swap frame gets the
+whole budget in one run. It improves the round from 540 to 403, exhausts its move
+class, and spends the rest of its 80 iterations proposing into a dead frame — the
+kernel has no concept of "this strategy is done."
 
-The script seeds a throwaway git repo (default: under `$TMPDIR`), then bootstraps the
-journal, seals the contract, aims, commits the spec, runs the kernel, seals the run,
-seals a diagnosis, and anchors the head. Every step calls the real instruments.
+**With the OS** (`seed/contract.toml`, then `seed/contract-gen2.toml`): the same
+frame runs as generation 1 with a budget of 30, in three sealed runs (accepts
+4 → 0 → 1, verdicts SUPPORTED / REJECTED / SUPPORTED). The next aim refuses with
+`R5_BUDGET` — and that refusal is the workflow. The script then walks the real
+jump path: `steer residual` → a `rival_draft` note → `steer dossier` → an
+independent review file and a human approval file → `jump adopt` → the
+generation-2 contract seals → a 2-opt frame takes the same objective from 403
+to 335.
 
-Expected result — deterministic, since the agent is seeded per iteration:
+The review and approval files are scripted here so the example runs unattended.
+That is exactly what a real project must not do — they exist to force a second
+session and a human into the frame-change decision.
 
-```
-1 accepted  2015.947 -> 1893.706      5 rejected  1608.642 -> 1608.642
-2 accepted  1893.706 -> 1891.481      6 rejected  1608.642 -> 1608.642
-3 accepted  1891.481 -> 1608.642      7 accepted  1608.642 -> 1525.805
-4 rejected  1608.642 -> 1646.536      8 rejected  1525.805 -> 1627.264
-```
+The chart (`loop-vs-os.png`, regenerated on every run if matplotlib is
+installed) plots both paths' retained objective per iteration; `plot.py` reads
+the actual `summary.json` files, not hardcoded numbers.
 
-Four accepted, four reverted, 24% shorter — and the sealed denominator is 8, not 4,
-because the budget counts what you tried, not what worked.
-
-What this example is not: a real LLM agent, and a REJECTED verdict. Its mechanism is
-close to true by construction — a real research contract never is, which is why the
-diagnosis, the budget, and the journal exist at all.
+What this example is not: a real LLM agent, or a domain where the objective
+could lie. Its objective *is* the goal (`proxy_license` says so) — in real
+research the number is a proxy, and the contract review plus the sealed
+denominator are what keep a good-looking number honest.

@@ -1,8 +1,11 @@
+# The "loop only" twin: same frame as generation 1, but the whole budget in one
+# run and no intention of sealing, diagnosing, or jumping afterwards. This is
+# what using the kernel without the OS looks like.
 schema = "ros2-contract-v1"
 integrity = ["cities.json", "objective.py", "guard_tour_valid.py"]
 
 [project]
-id = "delivery-round"
+id = "delivery-round-loop-only"
 
 [frame]
 generation = 1
@@ -10,7 +13,7 @@ class = "adjacent_swap"
 mechanism = "The round was scrambled by history, so neighboring stops are often in the wrong relative order; swapping adjacent stops fixes those inversions one at a time. Falsified if accepted swaps dry up while the round is still visibly poor."
 
 [budget]
-iterations_total = 30
+iterations_total = 80
 
 [agent]
 command = ["python3", "agent.py"]
@@ -19,7 +22,7 @@ timeout_seconds = 60
 [[stages]]
 id = "main"
 prompt = "Swap two adjacent stops in tour.json. Keep every city exactly once."
-iterations = 10
+iterations = 80
 
 [stages.objective]
 command = ["python3", "objective.py"]
@@ -27,7 +30,7 @@ direction = "minimize"
 margin = 0.001
 target = 280.0
 timeout_seconds = 30
-proxy_license = "example contract clause 1: total tour length is the goal itself — the driver pays for distance, so no proxy stands between the number and the thing being optimized."
+proxy_license = "example contract clause 1: total tour length is the goal itself."
 
 [[stages.guards]]
 id = "tour-valid"

@@ -1,45 +1,40 @@
 ---
-description: Run the bundled Loop OS example end to end and explain what each sealed event proves.
+description: Run the bundled Loop OS example — the same kernel bare vs governed by the OS — and explain the difference.
 ---
 
-Run the bundled example — one complete outer-loop cycle on a throwaway project —
-and then explain the result. Nothing in the user's own repository is touched.
+Run the bundled example and then explain what it shows. Nothing in the user's own
+repository is touched.
 
 ```
 sh __LOOP_OS_HOME__/examples/delivery-round/run.sh
 ```
 
-The script seeds a small git repo holding a real optimization problem — twelve
-delivery stops and a route that crosses itself — then bootstraps the journal, seals
-the contract, aims, runs the kernel, seals the run, seals a diagnosis, and anchors
-the head. Every step calls the real instruments; the only thing faked is the agent,
-and the kernel cannot tell the difference — it never trusts the agent anyway.
+The script runs the same kernel twice on the same 12-stop routing problem, in two
+throwaway projects: once **loop only** (one frame, the whole budget, no
+governance) and once **with the OS** (sealed runs, diagnoses, a budget refusal,
+and a jump to a successor frame). The agent is a scripted stand-in — no API key.
+If matplotlib is installed the run ends with `loop-vs-os.png` comparing both
+paths; offer to open it.
 
-The scripted agent proposes a random 2-opt move and is not an oracle: about half its
-proposals lengthen the round and get reverted. Expect roughly four accepted and four
-rejected iterations.
+Walk the user through the result in prose, using the real numbers from the
+output:
 
-Run it, then walk the user through what actually happened, in prose, using the real
-numbers from the output:
+1. **Both paths are the same kernel.** Same objective, same seeded proposals.
+   The divergence is not a better optimizer — it is governance.
+2. **Loop only stalls.** Quote its final objective and how many of its 80
+   iterations were rejected. The kernel cannot know a move class is exhausted;
+   it just keeps proposing.
+3. **The OS turns the same stall into evidence.** Quote the three runs' accept
+   counts and verdicts, then the `R5_BUDGET` refusal — the refusal is the
+   workflow, not an error.
+4. **The jump is licensed, not improvised.** Name the four files the adoption
+   event cites (dossier, successor contract, independent review, human
+   approval), and note the example scripts the last two only so it can run
+   unattended — a real project must not.
+5. **Generation 2 pays.** Quote the 2-opt run's descent and the final gap
+   between the two paths.
 
-1. **aim drew budget.** Quote `draw` and `budget_remaining` from `SPEC_ISSUED`, and
-   say plainly that the draw is spent whether or not the run succeeds — that is what
-   makes the budget a multiple-testing contract rather than a quota.
-2. **The kernel climbed — and threw work away.** Quote the objective's before/after
-   and the per-iteration decisions from `summary.json`, including the rejected ones.
-   The rejections are the interesting part: the agent proposed them in good faith,
-   the objective disagreed, and `git reset --hard` erased them. Note that the guard
-   ran on every iteration, and that a guard failure would have reverted the commit
-   even if the number had improved.
-3. **The run and the diagnosis were sealed.** Quote `trials_denominator` and the
-   verdict, and note that the denominator counts evaluations, not successes.
-4. **The head was anchored.** Quote the anchor `head` and explain that committing
-   `.journal-anchor.json` is what closes the chain's tail-edit blind spot.
-5. **Where it stands now.** Quote `next_required` from the final status.
-
-Then say what this example deliberately does *not* show: a real LLM agent, a real
-research question, and a REJECTED verdict. The example's mechanism is true by
-construction, which is exactly the situation a real contract never enjoys.
-
-Finish by pointing the user at the bootstrap command to set up their own project.
-The example directory is left on disk; its path is the last line of the output.
+Close with the one-line division of labor: the kernel finds the best answer
+inside one frame; the OS decides which frame deserves the budget. Then point at
+the bootstrap command for their own project. The example directories' path is
+the last line of the output.

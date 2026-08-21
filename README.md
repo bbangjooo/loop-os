@@ -10,17 +10,6 @@ The LLM proposes directions and interprets results, but its judgment enters the 
 
 ![Loop OS layers](docs/layers.png)
 
-## Loop only vs Loop OS
-
-Same kernel, same objective (route length), same proposal stream — the only difference is the OS around the loop ([docs/loop-vs-os.py](docs/loop-vs-os.py) reproduces this):
-
-![kernel (loop only) vs kernel + OS](docs/loop-vs-os.png)
-
-- **Both climbs are identical until iteration 30.** The kernel optimizes with the move class its contract started with — swapping adjacent stops — and lands in that class's local optimum at 405.
-- **The loop alone cannot know its strategy is exhausted.** Accepted moves per run decay 3 → 1 → 0, but the kernel has no concept of "this frame is done" — it burns the remaining budget proposing and rejecting forever.
-- **The OS reads the same rejections as evidence.** Three all-rejected runs close the hypothesis class; a jump adopts a new frame (reverse a segment, 2-opt); the same objective falls another 31%, to 310.
-- **The kernel finds the best answer inside one frame. The OS decides which frame deserves the budget.** That division is the whole design.
-
 ## Why
 
 - **A dumb loop climbs one number — it can't ask whether the number is worth climbing.** The OS makes every objective cite the contract clause that licenses it as a proxy (`proxy_license`); the real verdict happens outside, on data the system can't read.
@@ -49,31 +38,14 @@ The installer adds five slash commands to Claude Code. Run them from inside the 
 /loop-os:run-example
 ```
 
-One complete cycle on a throwaway project — nothing of yours is touched, no API key needed. The problem is a real one: twelve delivery stops and a route that crosses itself. A scripted stand-in plays the agent, reversing one randomly chosen segment per iteration with no idea whether that helps. Every step calls the real instruments:
+Runs the same kernel twice on the same 12-stop routing problem — once bare, once governed by the OS — in throwaway directories, no API key. Every step calls the real instruments:
 
-```
-== aim — compile the contract into a kernel spec
-{ "status": "SPEC_ISSUED", "loop_id": "delivery-round-g1-001", "draw": 8, "budget_remaining": 8,
-  "note": "commit the spec before running; the kernel refuses an untracked in-worktree spec" }
+![kernel (loop only) vs kernel + OS](examples/delivery-round/loop-vs-os.png)
 
-== run the kernel — the only step that executes anything
-  1 accepted  2015.947 -> 1893.706      5 rejected  1608.642 -> 1608.642
-  2 accepted  1893.706 -> 1891.481      6 rejected  1608.642 -> 1608.642
-  3 accepted  1891.481 -> 1608.642      7 accepted  1608.642 -> 1525.805
-  4 rejected  1608.642 -> 1646.536      8 rejected  1525.805 -> 1627.264
-
-== seal the run
-{ "status": "RUN_SEALED", "trials_denominator": 8,
-  "next_required": "author a diagnosis file and seal it (os/seal.py diagnosis)" }
-
-== status — where the project now stands
-{ "status": "OK", "generation": 1, "runs_sealed": 1, "drawn_by_generation": { "1": 8 },
-  "next_required": "issue the next spec (os/aim.py)" }
-```
-
-The round got 24% shorter, but four of the eight proposals made it worse and were reverted by `git reset --hard` — the loop is real, not a scripted descent. The sealed denominator is 8, not 4, because the budget counts what you tried; and the generation has 8 of its 16 iterations left, drawn up front and gone whether or not the run had worked.
-
-![Delivery round — before and after](examples/delivery-round/result.svg)
+- Same kernel, same objective (route length), same seeded proposals — the only difference is the OS around the loop.
+- **Loop only** stalls at 403: its adjacent-swap frame is exhausted, and the kernel has no way to know — 75 of its 80 iterations are spent proposing into a dead frame.
+- **With the OS**, three sealed runs (accepts 4 → 0 → 1) spend the generation's budget; the aim refusal, residual, dossier, independent review, and human approval license a **jump** to a 2-opt frame — and the same objective falls to 335.
+- The kernel finds the best answer inside one frame. The OS decides which frame deserves the budget.
 
 ### 2. Bootstrap your own project
 
@@ -97,9 +69,7 @@ The round got 24% shorter, but four of the eight proposals made it worse and wer
 
 ### 4. Jump when the frame dies
 
-When a hypothesis class dies (three REJECTED diagnoses) or a generation's budget is spent, you change frames with a **jump** — the only path from advisory notes to a new contract. Adoption is one atomic journal event citing four files: the dossier of what the rejections share, the successor contract (generation + 1), an independent review, and a human approval. Registering a higher generation without that event is refused, and until the successor draws budget the adoption can be revoked.
-
-A jump is a human decision, so it stays a deliberate sequence of instrument calls rather than a one-word command — the full operating procedure, including every raw instrument invocation, is [SKILL.md](SKILL.md). The design document is [docs/design.md](docs/design.md).
+A dead hypothesis class (three REJECTED diagnoses, or a spent budget) is replaced only through a **jump**: one atomic journal event citing the dossier, the successor contract, an independent review, and a human approval — exactly what the example above did at iteration 30. A jump is a human decision, so it stays a deliberate sequence of instrument calls rather than a one-word command; the full operating procedure is [SKILL.md](SKILL.md), and the design document is [docs/design.md](docs/design.md).
 
 ## License
 

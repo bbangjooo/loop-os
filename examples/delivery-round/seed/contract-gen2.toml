@@ -5,21 +5,21 @@ integrity = ["cities.json", "objective.py", "guard_tour_valid.py"]
 id = "delivery-round"
 
 [frame]
-generation = 1
-class = "adjacent_swap"
-mechanism = "The round was scrambled by history, so neighboring stops are often in the wrong relative order; swapping adjacent stops fixes those inversions one at a time. Falsified if accepted swaps dry up while the round is still visibly poor."
+generation = 2
+class = "two_opt"
+mechanism = "The stalled round still crosses itself, and a crossing can always be removed by reversing the segment between the two crossing edges — a move no adjacent swap can make in one step. Falsified if accepted reversals dry up while crossings remain."
 
 [budget]
-iterations_total = 30
+iterations_total = 50
 
 [agent]
-command = ["python3", "agent.py"]
+command = ["python3", "agent2.py"]
 timeout_seconds = 60
 
 [[stages]]
 id = "main"
-prompt = "Swap two adjacent stops in tour.json. Keep every city exactly once."
-iterations = 10
+prompt = "Reverse one segment of the tour in tour.json. Keep every city exactly once."
+iterations = 50
 
 [stages.objective]
 command = ["python3", "objective.py"]
