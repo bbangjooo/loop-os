@@ -72,60 +72,10 @@ The round got 24% shorter, but four of the eight proposals made it worse and wer
 
 - Your project is any git repository. Loop OS adds a **contract** (what to optimize, under which guards, with how much budget) and a **journal** (`.journal/` — hash-chained, gitignored, written only by instruments).
 - Offers a per-frame git worktree when you'll run more than one frame — the kernel commits and reverts in the working tree, so frames sharing a checkout collide.
-- Creates the journal, then feeds your problem statement to the contract builder below — one command from problem to sealed contract.
+- Creates the journal, then feeds your problem statement to the **contract builder** (`/loop-os:contract`, also standalone): it turns the statement into the four contract questions — objective, falsifiable mechanism, guards, budget — writes the evaluator if no command prints the number yet, and has the draft independently reviewed against a defect checklist before sealing. The contract is the one artifact nothing else in the system re-checks, so the review happens before the seal, not after.
+- What comes out looks like the example's [contract.toml](examples/delivery-round/seed/contract.toml).
 
-### 3. Describe the problem, get a contract
-
-```
-/loop-os:contract   the docker image is 4GB; get it under 1GB without dropping runtime deps
-```
-
-The contract is where Loop OS projects are won or lost, so it has its own builder — bootstrap calls it for you, and it also runs standalone (re-contracting the same generation, or drafting before you commit to a journal):
-
-- Turns a plain-language problem statement into the four contract questions — objective, falsifiable mechanism, guards, budget — inferring what it can from the repo and asking the rest in one batch.
-- Writes the evaluator if no command prints the number yet.
-- Has the draft independently reviewed against a defect checklist (proxy honesty, gameable guards, unpinned surfaces, indefensible budget) and refuses to seal over unresolved defects. The contract is the one artifact nothing else in the system re-checks, so the review happens before the seal, not after.
-
-A minimal contract:
-
-```toml
-schema = "ros2-contract-v1"
-integrity = ["evaluator.py"]              # pinned during runs; touching these voids the iteration
-
-[project]
-id = "my-project"
-
-[frame]
-generation = 1
-class = "my_hypothesis_class"
-mechanism = "why you believe the objective can move, in one falsifiable paragraph"
-
-[budget]
-iterations_total = 12                     # the generation's multiple-testing contract
-
-[agent]
-command = ["claude", "-p", "{prompt}", "--model", "claude-opus-5", "--dangerously-skip-permissions"]
-timeout_seconds = 1800
-
-[[stages]]
-id = "main"
-iterations = 8
-prompt = "What the agent should attempt, one conceptual change per iteration."
-
-[stages.objective]
-command = ["python3", "evaluate.py"]      # prints one number on the last line
-direction = "minimize"
-margin = 1
-target = 0
-proxy_license = "which contract clause licenses this number as a proxy for the real goal"
-
-[[stages.guards]]
-id = "tests"
-command = ["pytest", "-q"]
-kind = "exit_zero"
-```
-
-### 4. Run cycles
+### 3. Run cycles
 
 ```
 /loop-os:cycle       # one full cycle: aim → run → seal → diagnose → steer → anchor
@@ -134,22 +84,11 @@ kind = "exit_zero"
 
 `aim` is fail-closed. It refuses — with a code that names the missing input — when the journal is broken (`R1`), the contract drifted since registration (`R2`), a run is unsealed (`R3`), a diagnosis is missing (`R4`), or the generation budget can't cover the draw (`R5`). The refusal *is* the workflow: fix the named input and aim again, which is exactly what the cycle command does.
 
-### 5. Jump when the frame dies
+### 4. Jump when the frame dies
 
 When a hypothesis class dies (three REJECTED diagnoses) or a generation's budget is spent, you change frames with a **jump** — the only path from advisory notes to a new contract. Adoption is one atomic journal event citing four files: the dossier of what the rejections share, the successor contract (generation + 1), an independent review, and a human approval. Registering a higher generation without that event is refused, and until the successor draws budget the adoption can be revoked.
 
 A jump is a human decision, so it stays a deliberate sequence of instrument calls rather than a one-word command — the full operating procedure, including every raw instrument invocation, is [SKILL.md](SKILL.md). The design document is [docs/design.md](docs/design.md).
-
-## Benchmark
-
-The system's claims are measured, not assumed — see [bench/README.md](bench/README.md). The deterministic gate (red-team containment, capability floor, denominator honesty, crash resume) runs in CI on every push and PR to main. The measurement runner produces a scoreboard on synthetic problems with known ground truth, locally, with the scripted baseline or a real LLM agent:
-
-```bash
-uv run python bench/run.py --agent scripted
-uv run python bench/run.py --agent claude --model claude-opus-5
-```
-
-What the benchmark cannot prove — real research efficacy on non-synthetic domains — is documented there honestly.
 
 ## License
 
