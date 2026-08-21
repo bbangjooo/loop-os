@@ -1,6 +1,6 @@
-# Loop OS
+# Loop OS — evidence-first research with an untrusted agent
 
-A three-layer system for running bounded, evidence-first research with an LLM agent — without ever trusting the agent.
+A three-layer system for running bounded research with an LLM agent, without ever trusting the agent:
 
 - **Kernel** (`kernel/loop.py`) — a *dumb loop*. Measure, mutate once, run guards, commit or revert — one scalar objective, nothing else. The only thing that executes.
 - **OS** (`os/`) — the *skills the dumb loop lacks*. Seven deterministic instruments for aiming, sealing evidence, steering, memory, and jumping between hypothesis frames.
