@@ -122,24 +122,7 @@ kind = "exit_zero"
 
 When a hypothesis class dies (three REJECTED diagnoses) or a generation's budget is spent, you change frames with a **jump** — the only path from advisory notes to a new contract. Adoption is one atomic journal event citing four files: the dossier of what the rejections share, the successor contract (generation + 1), an independent review, and a human approval. Registering a higher generation without that event is refused, and until the successor draws budget the adoption can be revoked.
 
-A jump is a human decision, so it stays a deliberate sequence of instrument calls rather than a one-word command — the full operating procedure, including every raw instrument invocation, is [SKILL.md](SKILL.md).
-
-## Architecture
-
-The design document is [docs/design.md](docs/design.md); the full architecture diagram lives at [docs/architecture-diagram.html](docs/architecture-diagram.html) (exported: [SVG](docs/architecture.svg) · [PNG](docs/architecture.png)).
-
-![Loop OS architecture](docs/architecture.png)
-
-- **Kernel — `kernel/loop.py`.** A single-file, stdlib+PyYAML, domain-free experiment loop, vendored byte-identical from its upstream (`infocz/gos`) and pinned by `kernel/VENDOR.json`. One inner-loop step: measure → agent mutates once → check pins → run guards → re-measure → commit or `git reset --hard`.
-- **OS — `os/`.** Seven single-file instruments, each a pure function (files in → files out + at most one journal append): `journal`, `aim`, `seal`, `steer`, `note`, `memory`, `jump`. One outer-loop cycle: aim → run → seal → diagnose → steer → (jump) → aim.
-- **Application — your repo.** A contract, an evaluator, data surfaces, and the journal. Two references exist: the toy project in `tests/` (runs in CI) and a live quantitative-research deployment.
-
-### Integrity model
-
-- The journal is append-only and hash-chained; every event cites its input files by SHA-256. Instruments are the only writers.
-- The chain's one blind spot (a canonical edit to the newest line) is closed by **anchoring**: the verified head digest is committed to a git-tracked file, so rewriting sealed history breaks against git history.
-- Anti-gaming is digests, budgets, and reverts — never permissions or trust. The contract itself is integrity-pinned during runs, so the frame cannot drift mid-climb.
-- Deployment, releases, capital allocation, and live trading have no vocabulary here: no field in any schema could authorize them.
+A jump is a human decision, so it stays a deliberate sequence of instrument calls rather than a one-word command — the full operating procedure, including every raw instrument invocation, is [SKILL.md](SKILL.md). The design document is [docs/design.md](docs/design.md).
 
 ## Benchmark
 
