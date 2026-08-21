@@ -4,6 +4,10 @@ description: Bootstrap the current repository as a Loop OS application — creat
 
 Bootstrap the repository you are currently in as a Loop OS application.
 
+If the user passed anything after the command, treat it as the plain-language
+problem statement — what they want to get better — and carry it into step 4 so the
+contract builder starts from it instead of asking again.
+
 Loop OS lives at `__LOOP_OS_HOME__`; every instrument is run by path from there
 (`uv run python os/<instrument>.py`). Let `$P` be the absolute path of the current
 project. Never write `.journal/` or a `spec.yaml` by hand — instruments own both.
@@ -31,10 +35,11 @@ Do this in order, stopping at the first thing you cannot determine on your own:
 
 4. **Build and seal the contract** by following
    `__LOOP_OS_HOME__/commands/contract.md` — the contract-builder command, also
-   available directly as its own slash command. It interviews the user from a
-   plain-language problem statement, builds the evaluator if none exists, drafts
-   `contract.toml`, has the draft independently reviewed against a defect checklist,
-   and seals it. Do not seal an unreviewed contract.
+   available directly as its own slash command. Hand it the problem statement from
+   the command argument if one was given. It interviews the user from that
+   statement, builds the evaluator if none exists, drafts `contract.toml`, has the
+   draft independently reviewed against a defect checklist, and seals it. Do not
+   seal an unreviewed contract.
 
 5. **Verify and report.** Run `uv run python os/journal.py status --project $P` and
    tell the user the sealed contract digest, the objective's current value, the

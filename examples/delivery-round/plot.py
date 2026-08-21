@@ -118,13 +118,15 @@ def main():
         if it["decision"] == "accepted":
             last_kept = it["objective_after"]
 
-    svg = f"""<svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="dr-title dr-desc">
+    svg = f"""<svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="dr-title dr-desc">
   <title id="dr-title">Delivery round — before and after one Loop OS run</title>
   <desc id="dr-desc">The seed tour crosses itself; after eight iterations of random 2-opt proposals, four accepted and four reverted, the tour is {100 * (first - last_kept) / first:.0f} percent shorter. A step chart shows the objective per iteration with reverted proposals as hollow marks off the line.</desc>
   <rect width="100%" height="100%" fill="{PAPER}"/>
-  {tour_panel(24, 16, 200, cities, before, MUTED, "before", f"{first:.1f}")}
-  {tour_panel(256, 16, 200, cities, after, ACCENT, "after", f"{last_kept:.1f}")}
-  {descent_panel(488, 16, 208, 200, summary)}
+  <text x="24" y="24" fill="{INK}" font-size="10" font-family="{MONO}" letter-spacing="0.06em">the problem: visit all 12 delivery stops in the shortest possible round</text>
+  <text x="24" y="38" fill="{SOFT}" font-size="9" font-family="{MONO}">agent proposes a random 2-opt move · kernel keeps only what measures shorter</text>
+  {tour_panel(24, 52, 200, cities, before, MUTED, "before", f"{first:.1f}")}
+  {tour_panel(256, 52, 200, cities, after, ACCENT, "after", f"{last_kept:.1f}")}
+  {descent_panel(488, 52, 208, 200, summary)}
 </svg>
 """
     Path(args.out).write_text(svg, encoding="utf-8")

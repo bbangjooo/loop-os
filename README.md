@@ -67,20 +67,20 @@ The round got 24% shorter, but four of the eight proposals made it worse and wer
 ### 2. Bootstrap your own project
 
 ```
-/loop-os:bootstrap
+/loop-os:bootstrap   the test suite takes 40 minutes; I want it under 10 without losing coverage
 ```
 
 - Your project is any git repository. Loop OS adds a **contract** (what to optimize, under which guards, with how much budget) and a **journal** (`.journal/` — hash-chained, gitignored, written only by instruments).
 - Offers a per-frame git worktree when you'll run more than one frame — the kernel commits and reverts in the working tree, so frames sharing a checkout collide.
-- Creates the journal, then hands off to the contract builder below.
+- Creates the journal, then feeds your problem statement to the contract builder below — one command from problem to sealed contract.
 
 ### 3. Describe the problem, get a contract
 
 ```
-/loop-os:contract   the test suite takes 40 minutes; I want it under 10 without losing coverage
+/loop-os:contract   the docker image is 4GB; get it under 1GB without dropping runtime deps
 ```
 
-The contract is where Loop OS projects are won or lost, so it has its own builder:
+The contract is where Loop OS projects are won or lost, so it has its own builder — bootstrap calls it for you, and it also runs standalone (re-contracting the same generation, or drafting before you commit to a journal):
 
 - Turns a plain-language problem statement into the four contract questions — objective, falsifiable mechanism, guards, budget — inferring what it can from the repo and asking the rest in one batch.
 - Writes the evaluator if no command prints the number yet.
