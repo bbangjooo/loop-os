@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loop OS — Three Layers</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #f7f5f0; color: #2b2925; font-family: 'Geist', sans-serif; padding: 2.5rem 2rem; }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  .eyebrow { font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.16em; color: #8b857b; text-transform: uppercase; margin-bottom: 0.5rem; }
+  h1 { font-family: 'Instrument Serif', serif; font-weight: 400; font-size: 1.75rem; margin-bottom: 0.25rem; }
+  .subtitle { color: #6b665c; font-size: 0.85rem; margin-bottom: 1.5rem; }
+  svg { width: 100%; height: auto; display: block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">LOOP OS</p>
+  <h1>Kernel · OS · Application</h1>
+  <p class="subtitle">A dumb kernel loop, the OS skills around it, and the problems that run on top.</p>
+
+  <svg viewBox="0 0 720 336" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="loop-os-layers-title loop-os-layers-desc">
+    <title id="loop-os-layers-title">Loop OS three-layer stack</title>
+    <desc id="loop-os-layers-desc">Compact layer stack: the application layer on top, marked by an external callout as your repo, lists the problems that run on the OS — quant research, ML tuning, refactoring, and more; below it, a solid boundary marked by a callout as loop-os, this repo, contains the two layers this repository ships — the OS layer with the seven skills the loop needs (journal, aim, seal, steer, note, memory, jump) and the kernel layer, a dumb loop of measure, mutate, guards, commit or revert.</desc>
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#6b665c"/>
+      </marker>
+      <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#a63d2f"/>
+      </marker>
+      <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#35618e"/>
+      </marker>
+    </defs>
+    <rect width="100%" height="100%" fill="#f7f5f0"/>
+
+    <!-- external callout arrows (drawn before boxes) -->
+    <line x1="600" y1="84" x2="556" y2="84" stroke="#6b665c" stroke-width="1" marker-end="url(#arrow)"/>
+    <text x="608" y="88" fill="#2b2925" font-size="14" font-style="italic" font-family="'Instrument Serif', serif">your repo</text>
+    <line x1="600" y1="224" x2="556" y2="224" stroke="#6b665c" stroke-width="1" marker-end="url(#arrow)"/>
+    <text x="608" y="220" fill="#2b2925" font-size="14" font-style="italic" font-family="'Instrument Serif', serif">loop-os</text>
+    <text x="608" y="240" fill="#6b665c" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.08em">THIS REPO</text>
+
+    <!-- L2 Application — external, your repo -->
+    <rect x="72" y="32" width="480" height="88" rx="6" fill="#f7f5f0"/>
+    <rect x="72" y="32" width="480" height="88" rx="6" fill="#fbfaf7" stroke="rgba(43,41,37,0.35)" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="88" y="60" fill="#8b857b" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.14em">L2</text>
+    <text x="112" y="60" fill="#2b2925" font-size="14" font-weight="600" font-family="'Geist', sans-serif">Application</text>
+    <text x="536" y="60" fill="#8b857b" font-size="8" font-family="'Geist Mono', monospace" text-anchor="end">the problems that run on the OS</text>
+    <rect x="88" y="72" width="92" height="24" rx="4" fill="#ffffff" stroke="rgba(43,41,37,0.25)" stroke-width="1"/>
+    <text x="134" y="88" fill="#2b2925" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">quant research</text>
+    <rect x="188" y="72" width="68" height="24" rx="4" fill="#ffffff" stroke="rgba(43,41,37,0.25)" stroke-width="1"/>
+    <text x="222" y="88" fill="#2b2925" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">ML tuning</text>
+    <rect x="264" y="72" width="76" height="24" rx="4" fill="#ffffff" stroke="rgba(43,41,37,0.25)" stroke-width="1"/>
+    <text x="302" y="88" fill="#2b2925" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">refactoring</text>
+    <rect x="348" y="72" width="24" height="24" rx="4" fill="#ffffff" stroke="rgba(43,41,37,0.25)" stroke-width="1"/>
+    <text x="360" y="88" fill="#2b2925" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">…</text>
+
+    <!-- loop-os boundary: contains OS + Kernel -->
+    <rect x="72" y="136" width="480" height="176" rx="6" fill="#ffffff"/>
+    <rect x="72" y="136" width="480" height="88" fill="rgba(166,61,47,0.07)"/>
+    <rect x="72" y="224" width="480" height="88" rx="6" fill="#f2f1ee"/>
+    <rect x="72" y="224" width="480" height="44" fill="#f2f1ee"/>
+    <line x1="72" y1="224" x2="552" y2="224" stroke="rgba(43,41,37,0.12)" stroke-width="1"/>
+    <rect x="72" y="136" width="480" height="176" rx="6" fill="none" stroke="#2b2925" stroke-width="1"/>
+    <rect x="72" y="136" width="4" height="88" fill="#a63d2f"/>
+
+    <!-- L1 OS — focal -->
+    <text x="88" y="164" fill="#8b857b" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.14em">L1</text>
+    <text x="112" y="164" fill="#2b2925" font-size="14" font-weight="600" font-family="'Geist', sans-serif">OS</text>
+    <text x="536" y="164" fill="#8b857b" font-size="8" font-family="'Geist Mono', monospace" text-anchor="end">os/ — the skills the dumb loop lacks</text>
+    <rect x="88" y="176" width="56" height="24" rx="4" fill="#ffffff" stroke="rgba(166,61,47,0.55)" stroke-width="1"/>
+    <text x="116" y="192" fill="#2b2925" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">journal</text>
+    <rect x="152" y="176" width="36" height="24" rx="4" fill="#ffffff" stroke="rgba(166,61,47,0.55)" stroke-width="1"/>
+    <text x="170" y="192" fill="#2b2925" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">aim</text>
+    <rect x="196" y="176" width="40" height="24" rx="4" fill="#ffffff" stroke="rgba(166,61,47,0.55)" stroke-width="1"/>
+    <text x="216" y="192" fill="#2b2925" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">seal</text>
+    <rect x="244" y="176" width="44" height="24" rx="4" fill="#ffffff" stroke="rgba(166,61,47,0.55)" stroke-width="1"/>
+    <text x="266" y="192" fill="#2b2925" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">steer</text>
+    <rect x="296" y="176" width="40" height="24" rx="4" fill="#ffffff" stroke="rgba(166,61,47,0.55)" stroke-width="1"/>
+    <text x="316" y="192" fill="#2b2925" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">note</text>
+    <rect x="344" y="176" width="52" height="24" rx="4" fill="#ffffff" stroke="rgba(166,61,47,0.55)" stroke-width="1"/>
+    <text x="370" y="192" fill="#2b2925" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">memory</text>
+    <rect x="404" y="176" width="40" height="24" rx="4" fill="#ffffff" stroke="rgba(166,61,47,0.55)" stroke-width="1"/>
+    <text x="424" y="192" fill="#2b2925" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">jump</text>
+
+    <!-- L0 Kernel -->
+    <text x="88" y="252" fill="#8b857b" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.14em">L0</text>
+    <text x="112" y="252" fill="#2b2925" font-size="14" font-weight="600" font-family="'Geist', sans-serif">Kernel</text>
+    <text x="536" y="252" fill="#8b857b" font-size="8" font-family="'Geist Mono', monospace" text-anchor="end">kernel/loop.py — a dumb loop, the only executor</text>
+    <rect x="88" y="264" width="56" height="24" rx="4" fill="#ffffff" stroke="rgba(43,41,37,0.25)" stroke-width="1"/>
+    <text x="116" y="280" fill="#2b2925" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">measure</text>
+    <rect x="152" y="264" width="52" height="24" rx="4" fill="#ffffff" stroke="rgba(43,41,37,0.25)" stroke-width="1"/>
+    <text x="178" y="280" fill="#2b2925" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">mutate</text>
+    <rect x="212" y="264" width="52" height="24" rx="4" fill="#ffffff" stroke="rgba(43,41,37,0.25)" stroke-width="1"/>
+    <text x="238" y="280" fill="#2b2925" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">guards</text>
+    <rect x="272" y="264" width="88" height="24" rx="4" fill="#ffffff" stroke="rgba(43,41,37,0.25)" stroke-width="1"/>
+    <text x="316" y="280" fill="#2b2925" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">commit/revert</text>
+  </svg>
+</div>
+</body>
+</html>

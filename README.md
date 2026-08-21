@@ -2,44 +2,38 @@
 
 A three-layer system for running bounded, evidence-first research with an LLM agent — without ever trusting the agent.
 
-The **kernel** only climbs: it optimizes one scalar objective under guards, budgets, and git-backed rollback. The **OS** only decides where to climb: deterministic instruments compile your research intent into kernel specs and seal everything that happens into a tamper-evident journal. Your **application** is just a directory: a contract, an evaluator, and the journal. The LLM proposes directions and interprets results, but its judgment enters the system only as digest-sealed files — if the file isn't there, the system structurally stops.
+- **Kernel** (`kernel/loop.py`) — a *dumb loop*. Measure, mutate once, run guards, commit or revert — one scalar objective, nothing else. The only thing that executes.
+- **OS** (`os/`) — the *skills the dumb loop lacks*. Seven deterministic instruments for aiming, sealing evidence, steering, memory, and jumping between hypothesis frames.
+- **Application** (your repo) — the *problems that run on the OS*: quant research, ML tuning, refactoring — anything with a contract, an evaluator, and the journal.
 
-![Loop OS architecture](docs/architecture.png)
+The LLM proposes directions and interprets results, but its judgment enters the system only as digest-sealed files — if the file isn't there, the system structurally stops.
+
+![Loop OS layers](docs/layers.png)
 
 ## Why
 
 Letting an agent hill-climb a research metric is, by construction, an overfitting machine: every accepted step burns statistical validity, and an unsupervised agent will happily improve the number by breaking the program. Loop OS contains both failure modes with structure instead of supervision:
 
-- **The objective is a licensed proxy, not the truth.** Every objective must name the contract clause that licenses it (`proxy_license`), and the real verdict happens once, outside the system, on data the system physically cannot read.
-- **Budgets are multiple-testing contracts.** Iterations are drawn at spec-issue time and never refunded — an abandoned run still burns its draw. The sealed denominator counts every evaluation, including ones the agent ran quietly inside an iteration.
-- **Guards carry the proof.** The kernel doesn't judge correctness; your guard commands do. A change that improves the objective but breaks a guard is reverted. A change that touches a pinned file voids the iteration entirely.
-- **Judgment is a file, not a state transition.** There is no workflow engine and no state machine. Ordering is enforced by data dependency: each step's input must cite the previous step's output digest, so skipping a step makes the next one impossible rather than forbidden.
+- **Objectives are licensed proxies, not the truth.** Every objective names the contract clause that licenses it (`proxy_license`); the real verdict happens once, outside the system, on data it physically cannot read.
+- **Budgets are multiple-testing contracts.** Iterations are drawn at spec-issue time and never refunded; the sealed denominator counts every evaluation, including quiet ones.
+- **Guards carry the proof.** A change that improves the objective but breaks a guard is reverted. A change that touches a pinned file voids the iteration.
+- **Judgment is a file, not a state transition.** No workflow engine, no state machine. Each step's input must cite the previous step's output digest, so skipping a step makes the next one impossible rather than forbidden.
 
-## Install
+## Getting Started
 
-Requirements: Python ≥ 3.11, git, [uv](https://docs.astral.sh/uv/), and an agent harness (Claude Code or Codex) to act as the outer-loop runtime.
-
-```bash
-git clone https://github.com/bbangjooo/loop-os.git ~/loop-os
-cd ~/loop-os
-uv sync
-uv run python -m pytest tests/ kernel/tests/ bench/ -q   # OS + kernel + benchmark gate
-```
-
-Optionally install the agent skill so your harness knows how to drive the instruments:
+### Install
 
 ```bash
-cp -r ~/loop-os/SKILL.md ~/.claude/skills/loop-os/SKILL.md   # Claude Code
-cp -r ~/loop-os/SKILL.md ~/.agents/skills/loop-os/SKILL.md   # Codex
+curl -fsSL https://raw.githubusercontent.com/bbangjooo/loop-os/main/install.sh | sh
 ```
+
+This clones the repo into `~/loop-os`, installs dependencies with [uv](https://docs.astral.sh/uv/), installs the agent skill into every harness it finds — Claude Code (`~/.claude/skills/loop-os`) and Codex (`~/.agents/skills/loop-os`) — and runs the test gate. Requirements: Python ≥ 3.11, git, uv, and an agent harness (Claude Code or Codex) as the outer-loop runtime.
 
 There is no CLI product and no daemon. The instruments in `os/` are plain scripts, always run by path from this repo (the directory has no `__init__.py`, so it never shadows Python's stdlib `os` module).
 
-## Usage
-
-Your project is any git repository. Loop OS adds three things to it: a **contract** (what to optimize, under which guards, with how much budget), a **journal** (`.journal/`, the only canonical record — hash-chained, gitignored, written only by instruments), and **specs** the kernel runs.
-
 ### 1. Bootstrap and register
+
+Your project is any git repository. Loop OS adds a **contract** (what to optimize, under which guards, with how much budget), a **journal** (`.journal/`, the only canonical record — hash-chained, gitignored, written only by instruments), and **specs** the kernel runs.
 
 ```bash
 cd ~/loop-os
@@ -130,29 +124,20 @@ The full operating procedure the agent follows is [SKILL.md](SKILL.md).
 
 ## Architecture
 
-The design document is [docs/design.md](docs/design.md); a rendered architecture diagram lives at [docs/architecture-diagram.html](docs/architecture-diagram.html) (exported: [SVG](docs/architecture.svg) · [PNG](docs/architecture.png)).
+The design document is [docs/design.md](docs/design.md); the full architecture diagram lives at [docs/architecture-diagram.html](docs/architecture-diagram.html) (exported: [SVG](docs/architecture.svg) · [PNG](docs/architecture.png)).
 
-### Two nested loops
+![Loop OS architecture](docs/architecture.png)
 
-| | Inner loop (kernel) | Outer loop (OS) |
-|---|---|---|
-| Runs | seconds–minutes per iteration | one cycle per run |
-| Driver | `kernel/loop.py`, fully deterministic | the agent harness, following SKILL.md |
-| One step | measure → agent mutates once → check pins → run guards → re-measure → commit or `git reset --hard` | aim → run → seal → diagnose → steer → (jump) → aim |
-| Failure | rejected (reverted) or void (pins moved) | a refusal naming the missing input |
-
-### Layers
-
-- **Kernel — `kernel/loop.py`.** A single-file, stdlib+PyYAML, domain-free experiment loop, vendored byte-identical from its upstream (`infocz/gos`) and pinned by `kernel/VENDOR.json`. It owns exactly four things: a scalar objective, reversibility, a short horizon, and a finite budget. It is the only thing that executes.
-- **OS — `os/`.** Seven single-file instruments, each a pure function (files in → files out + at most one journal append): `journal` (hash-chained canonical record, verify/status/anchor), `aim` (contract + journal → kernel spec, fail-closed R1–R5), `seal` (contract/run/diagnosis/abandon), `steer` (read-only projections: status, frame-health, residual, jump dossier), `note` (screened advisory notes with prior binding), `memory` (claims + exact-class retrieval), `jump` (atomic adoption, revoke).
-- **Application — your repo.** A contract, an evaluator, data surfaces, and the journal. Two applications exist as references: the toy project in `tests/` (runs in CI) and a live quantitative-research deployment.
+- **Kernel — `kernel/loop.py`.** A single-file, stdlib+PyYAML, domain-free experiment loop, vendored byte-identical from its upstream (`infocz/gos`) and pinned by `kernel/VENDOR.json`. One inner-loop step: measure → agent mutates once → check pins → run guards → re-measure → commit or `git reset --hard`.
+- **OS — `os/`.** Seven single-file instruments, each a pure function (files in → files out + at most one journal append): `journal`, `aim`, `seal`, `steer`, `note`, `memory`, `jump`. One outer-loop cycle: aim → run → seal → diagnose → steer → (jump) → aim.
+- **Application — your repo.** A contract, an evaluator, data surfaces, and the journal. Two references exist: the toy project in `tests/` (runs in CI) and a live quantitative-research deployment.
 
 ### Integrity model
 
 - The journal is append-only and hash-chained; every event cites its input files by SHA-256. Instruments are the only writers.
-- The chain's one blind spot (a canonical edit to the newest line) is closed by **anchoring**: the verified head digest is written to a git-tracked file and committed, so rewriting sealed history breaks against git history.
+- The chain's one blind spot (a canonical edit to the newest line) is closed by **anchoring**: the verified head digest is committed to a git-tracked file, so rewriting sealed history breaks against git history.
 - Anti-gaming is digests, budgets, and reverts — never permissions or trust. The contract itself is integrity-pinned during runs, so the frame cannot drift mid-climb.
-- Deployment, releases, capital allocation, and live trading have no vocabulary here: there is no field in any schema that could authorize them.
+- Deployment, releases, capital allocation, and live trading have no vocabulary here: no field in any schema could authorize them.
 
 ## Benchmark
 
