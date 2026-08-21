@@ -12,12 +12,12 @@ The LLM proposes directions and interprets results, but its judgment enters the 
 
 ## Why
 
-Letting an agent hill-climb a research metric is, by construction, an overfitting machine: every accepted step burns statistical validity, and an unsupervised agent will happily improve the number by breaking the program. Loop OS contains both failure modes with structure instead of supervision:
-
-- **Objectives are licensed proxies, not the truth.** Every objective names the contract clause that licenses it (`proxy_license`); the real verdict happens once, outside the system, on data it physically cannot read.
-- **Budgets are multiple-testing contracts.** Iterations are drawn at spec-issue time and never refunded; the sealed denominator counts every evaluation, including quiet ones.
-- **Guards carry the proof.** A change that improves the objective but breaks a guard is reverted. A change that touches a pinned file voids the iteration.
-- **Judgment is a file, not a state transition.** No workflow engine, no state machine. Each step's input must cite the previous step's output digest, so skipping a step makes the next one impossible rather than forbidden.
+- **The kernel climbs one number — it can't ask whether the number is worth climbing.** The OS makes every objective cite the contract clause that licenses it as a proxy (`proxy_license`); the real verdict happens outside, on data the system can't read.
+- **The kernel spends iterations — it can't police how many.** The OS turns budgets into multiple-testing contracts: iterations are drawn up front and never refunded, and abandoned runs still count.
+- **The kernel reverts bad changes — it can't remember what happened.** The OS seals every run, diagnosis, and contract into a hash-chained journal, anchored in git so history can't be quietly rewritten.
+- **The kernel can't change its own frame.** The OS owns jumps: a dead hypothesis class is replaced only through a reviewed, human-approved, sealed adoption.
+- **Nothing trusts the agent.** Its judgment enters only as digest-sealed files — if the file isn't there, the system structurally stops.
+- **Application-agnostic.** The kernel and OS know nothing about the domain — any repo with a contract and an evaluator runs unchanged, whether the problem is quant research, ML tuning, or refactoring.
 
 ## Getting Started
 
