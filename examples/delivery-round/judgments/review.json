@@ -1,0 +1,6 @@
+{
+  "reviewer": "scripted-for-the-example (a real project uses a separate session or model)",
+  "independent": true,
+  "verdict": "PASS",
+  "notes": "Successor mechanism names a move the rejected class cannot make, and carries its own falsifier."
+}

@@ -1,5 +1,5 @@
 schema = "ros2-contract-v1"
-integrity = ["cities.json", "objective.py", "guard_tour_valid.py"]
+integrity = ["objective.py", "guard.py"]
 
 [project]
 id = "delivery-round"
@@ -13,7 +13,7 @@ mechanism = "The stalled round still crosses itself, and a crossing can always b
 iterations_total = 50
 
 [agent]
-command = ["python3", "agent2.py"]
+command = ["python3", "agent_2opt.py"]
 timeout_seconds = 60
 
 [[stages]]
@@ -31,6 +31,6 @@ proxy_license = "example contract clause 1: total tour length is the goal itself
 
 [[stages.guards]]
 id = "tour-valid"
-command = ["python3", "guard_tour_valid.py"]
+command = ["python3", "guard.py"]
 kind = "exit_zero"
 timeout_seconds = 30

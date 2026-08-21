@@ -1,0 +1,7 @@
+{
+  "verdict": "SUPPORTED",
+  "what_moved": "objective 403.5 -> 334.7; 3 of 50 iterations accepted; denominator 50",
+  "mechanism_interpretation": "The successor mechanism holds: segment reversals removed crossings the adjacent-swap class could not touch, taking the round 17% below the tour that class stalled on.",
+  "counterfactual": "The generation-1 class was measured exhausted at 403.5 over thirty proposals; without the frame change the round would still measure 403.5.",
+  "next_question": "Accepts are sparse (3 of 50) — is 334.7 near this instance's optimum, or does the reversal class have more to give before its own falsifier fires?"
+}

@@ -1,8 +1,8 @@
-# The "loop only" twin: same frame as generation 1, but the whole budget in one
+# The "loop only" twin: the same generation-1 frame, but the whole budget in one
 # run and no intention of sealing, diagnosing, or jumping afterwards. This is
 # what using the kernel without the OS looks like.
 schema = "ros2-contract-v1"
-integrity = ["cities.json", "objective.py", "guard_tour_valid.py"]
+integrity = ["objective.py", "guard.py"]
 
 [project]
 id = "delivery-round-loop-only"
@@ -16,7 +16,7 @@ mechanism = "The round was scrambled by history, so neighboring stops are often 
 iterations_total = 80
 
 [agent]
-command = ["python3", "agent.py"]
+command = ["python3", "agent_swap.py"]
 timeout_seconds = 60
 
 [[stages]]
@@ -34,6 +34,6 @@ proxy_license = "example contract clause 1: total tour length is the goal itself
 
 [[stages.guards]]
 id = "tour-valid"
-command = ["python3", "guard_tour_valid.py"]
+command = ["python3", "guard.py"]
 kind = "exit_zero"
 timeout_seconds = 30

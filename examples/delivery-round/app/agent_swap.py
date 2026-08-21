@@ -1,12 +1,8 @@
 """Generation-1 agent: swap two adjacent stops.
 
-A scripted stand-in for the LLM. It is not an oracle — it picks the position at
-random and has no idea whether the swap shortens the round. The kernel measures
-and decides; rejected proposals are reverted.
-
-Seeded from (EXPERIMENT_LOOP_ID, EXPERIMENT_LOOP_ITERATION), both set by the
-kernel for the agent process, so every iteration of every run proposes its own
-move deterministically.
+A scripted stand-in for the LLM. Not an oracle — it picks the position at random
+and has no idea whether the swap helps; the kernel measures and decides. Seeded
+from EXPERIMENT_LOOP_ID / EXPERIMENT_LOOP_ITERATION, set by the kernel.
 """
 
 import json

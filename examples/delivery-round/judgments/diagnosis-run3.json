@@ -1,0 +1,7 @@
+{
+  "verdict": "SUPPORTED",
+  "what_moved": "objective 411.1 -> 403.5; 1 of 10 iterations accepted; denominator 10",
+  "mechanism_interpretation": "One last inversion fixed, barely. Accepts across the generation decayed 4 -> 0 -> 1 over thirty proposals: the mechanism is real but nearly spent, and the round still crosses itself — something this move class cannot repair in one step.",
+  "counterfactual": "Without that single accepted swap the round would still measure 411.1.",
+  "next_question": "What move class can remove the remaining crossings that no adjacent swap can — segment reversal?"
+}

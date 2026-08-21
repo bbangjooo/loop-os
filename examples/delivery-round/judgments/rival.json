@@ -1,0 +1,6 @@
+{
+  "commitment_rejected": "adjacent_swap: the class stopped producing accepted moves (4 -> 0 -> 1 over three runs) while the round still crosses itself",
+  "proposed_frame": "two_opt: reverse one whole segment per iteration",
+  "mechanism": "A crossing is removed by reversing the segment between the two crossing edges — a move no sequence of single adjacent swaps can make without passing through longer tours first.",
+  "falsifier": "If accepted reversals also dry up while crossings remain, the successor class is wrong too."
+}

@@ -56,7 +56,7 @@ Runs the same kernel twice on the same 12-stop routing problem — once bare, on
 - Your project is any git repository. Loop OS adds a **contract** (what to optimize, under which guards, with how much budget) and a **journal** (`.journal/` — hash-chained, gitignored, written only by instruments).
 - Offers a per-frame git worktree when you'll run more than one frame — the kernel commits and reverts in the working tree, so frames sharing a checkout collide.
 - Creates the journal, then feeds your problem statement to the **contract builder** (`/loop-os:contract`, also standalone): it turns the statement into the four contract questions — objective, falsifiable mechanism, guards, budget — writes the evaluator if no command prints the number yet, and has the draft independently reviewed against a defect checklist before sealing. The contract is the one artifact nothing else in the system re-checks, so the review happens before the seal, not after.
-- What comes out looks like the example's [contract.toml](examples/delivery-round/seed/contract.toml).
+- What comes out looks like the example's [gen1.toml](examples/delivery-round/contracts/gen1.toml).
 
 ### 3. Run cycles
 

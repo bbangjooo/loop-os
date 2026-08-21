@@ -8,7 +8,7 @@ sentence about what they want to get better is enough to begin.
 
 Loop OS lives at `__LOOP_OS_HOME__`; instruments run by path from there. Let `$P`
 be the absolute path of the current project. A complete sealed contract to model on
-is `__LOOP_OS_HOME__/examples/delivery-round/seed/contract.toml`.
+is `__LOOP_OS_HOME__/examples/delivery-round/contracts/gen1.toml`.
 
 If `$P/.journal/` does not exist, say so and offer to run the bootstrap command
 first — a contract can be drafted without a journal, but it cannot be sealed into

@@ -1,8 +1,7 @@
 """Generation-2 agent: reverse one segment of the tour (a 2-opt move).
 
-The successor frame adopted by the jump. Same contract with the kernel as the
-generation-1 agent: propose one change, let the objective decide. Seeded from
-(EXPERIMENT_LOOP_ID, EXPERIMENT_LOOP_ITERATION) like agent.py.
+The successor frame adopted by the jump. Same deal with the kernel as the
+generation-1 agent: propose one change, let the objective decide.
 """
 
 import json

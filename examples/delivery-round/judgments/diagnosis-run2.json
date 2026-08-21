@@ -1,0 +1,7 @@
+{
+  "verdict": "REJECTED",
+  "what_moved": "objective 411.1 -> 411.1; 0 of 10 iterations accepted; denominator 10",
+  "mechanism_interpretation": "The mechanism produced nothing this run: ten distinct swap proposals, zero accepted. The frame's falsifier is firing — the move class looks exhausted at this tour, not unlucky.",
+  "counterfactual": "If the class still had inversions to fix, at least one of ten distinct proposals should have been accepted; the round stayed at 411.1 for all of them.",
+  "next_question": "Is the stall the class or the seed positions — does one more run accept anything at all?"
+}

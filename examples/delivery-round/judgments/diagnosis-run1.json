@@ -1,0 +1,7 @@
+{
+  "verdict": "SUPPORTED",
+  "what_moved": "objective 540.1 -> 411.1; 4 of 10 iterations accepted; denominator 10",
+  "mechanism_interpretation": "The mechanism holds so far: adjacent swaps fixed four neighboring inversions and every accepted state kept the guard passing.",
+  "counterfactual": "Without the accepted swaps the round would still measure 540.1; nothing else writes tour.json.",
+  "next_question": "How many inversions does the round have left for this move class to fix?"
+}
