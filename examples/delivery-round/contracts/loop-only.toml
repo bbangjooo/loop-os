@@ -30,7 +30,7 @@ direction = "minimize"
 margin = 0.001
 target = 280.0
 timeout_seconds = 30
-proxy_license = "example contract clause 1: total tour length is the goal itself."
+proxy_license = "example contract clause 1: total tour length is the goal itself — the driver pays for distance, so no proxy stands between the number and the thing being optimized."
 
 [[stages.guards]]
 id = "tour-valid"

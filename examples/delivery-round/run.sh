@@ -1,24 +1,27 @@
 #!/bin/sh
-# The bundled Loop OS example: the same kernel run twice on the same problem —
-# once bare ("loop only"), once governed by the OS.
+# The bundled Loop OS example: the same kernel run twice on the same problem.
 #
 #   sh examples/delivery-round/run.sh [target-dir]
 #
-# Every step below is a call to kernel/loop.py or an os/ instrument — nothing
-# else. The application is app/ (evaluator, guard, agents, one data file); the
-# judgment files a real agent would author live pre-written in judgments/, with
-# the numbers the deterministic runs actually produce.
+# Fairness: both paths use the same frame (class, mechanism, agent, objective,
+# guard, margin — diff contracts/gen1.toml contracts/loop-only.toml) and the
+# same total of 80 iterations. The only difference is how the 80 are governed:
+# loop-only spends them in one undivided run; with-os spends 30 across three
+# sealed runs, then 50 more in a successor frame licensed by a jump.
+#
+# Every command below is kernel/loop.py or an os/ instrument. The application
+# lives in app/, the frames in contracts/, and the judgment files a real agent
+# and human would author in judgments/.
 
 set -eu
 
 LOOP_OS_HOME="$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)"
 EX="$LOOP_OS_HOME/examples/delivery-round"
 BASE="${1:-${TMPDIR:-/tmp}/loop-os-example-$$}"
-P1="$BASE/loop-only"
-P2="$BASE/with-os"
 
 step() { printf '\n\033[1;34m== %s\033[0m\n' "$1"; }
 [ -e "$BASE" ] && { printf 'target %s already exists; pass a fresh path\n' "$BASE" >&2; exit 1; }
+cd "$LOOP_OS_HOME"
 
 seed() { # seed <dir> <contract>
     mkdir -p "$1"
@@ -30,8 +33,6 @@ seed() { # seed <dir> <contract>
     git -C "$1" add -A && git -C "$1" commit -q -m "seed"
 }
 
-cd "$LOOP_OS_HOME"
-
 aim_run() { # aim_run <dir> — aim, commit the spec, run the kernel
     uv run python os/aim.py --project "$1" --contract "$1/contract.toml"
     git -C "$1" add -A && git -C "$1" commit -q -m "spec"
@@ -42,65 +43,74 @@ aim_run() { # aim_run <dir> — aim, commit the spec, run the kernel
     LEDGER="$1/.git/experiment-loop/$(basename "$(dirname "$SPEC")" | sed 's/^[0-9-]*-//')/ledger.jsonl"
 }
 
-# ---------------------------------------------------------------- loop only --
-step "LOOP ONLY: one frame, the whole budget, no governance"
-seed "$P1" loop-only.toml
-uv run python os/journal.py bootstrap --project "$P1" --project-id delivery-round-loop-only
-uv run python os/seal.py contract --project "$P1"
-aim_run "$P1"
-SUMMARY1="$SUMMARY"
-# ...and that is where "loop only" ends: nothing is sealed, nothing is judged,
-# and no matter how long it keeps proposing, the frame never changes.
+seal_cycle() { # seal_cycle <dir> <diagnosis-file> — seal the run, its diagnosis, and anchor
+    uv run python os/seal.py run --project "$1" --summary "$SUMMARY" --ledger "$LEDGER"
+    uv run python os/seal.py diagnosis --project "$1" --file "$EX/judgments/$2"
+    uv run python os/journal.py anchor --project "$1"
+    git -C "$1" add -A && git -C "$1" commit -q -m "anchor"
+}
 
-# ------------------------------------------------------------------ with OS --
-step "WITH THE OS: generation 1 (adjacent swap), budget 30, three sealed runs"
-seed "$P2" gen1.toml
-uv run python os/journal.py bootstrap --project "$P2" --project-id delivery-round
-uv run python os/seal.py contract --project "$P2"
+run_loop_only() {
+    P="$BASE/loop-only"
+    step "LOOP ONLY: one frame, all 80 iterations, no governance"
+    seed "$P" loop-only.toml
+    uv run python os/journal.py bootstrap --project "$P" --project-id delivery-round-loop-only
+    uv run python os/seal.py contract --project "$P"
+    aim_run "$P"
+    SUMMARY_LOOP_ONLY="$SUMMARY"
+    # ...and that is where "loop only" ends: nothing is sealed, nothing is
+    # judged, and no matter how long it proposes, the frame never changes.
+}
 
-OS_SUMMARIES=""
-for n in 1 2 3; do
-    step "with-os: generation 1, run $n"
-    aim_run "$P2"
-    uv run python os/seal.py run --project "$P2" --summary "$SUMMARY" --ledger "$LEDGER"
-    uv run python os/seal.py diagnosis --project "$P2" --file "$EX/judgments/diagnosis-run$n.json"
-    uv run python os/journal.py anchor --project "$P2"
-    git -C "$P2" add -A && git -C "$P2" commit -q -m "anchor"
+run_with_os() {
+    P="$BASE/with-os"
+    step "WITH THE OS: generation 1 (adjacent swap), budget 30, three sealed runs"
+    seed "$P" gen1.toml
+    uv run python os/journal.py bootstrap --project "$P" --project-id delivery-round
+    uv run python os/seal.py contract --project "$P"
+
+    OS_SUMMARIES=""
+    for n in 1 2 3; do
+        step "with-os: generation 1, run $n"
+        aim_run "$P"
+        seal_cycle "$P" "diagnosis-run$n.json"
+        OS_SUMMARIES="$OS_SUMMARIES $SUMMARY"
+    done
+
+    step "with-os: aim again — the budget refuses (this refusal IS the workflow)"
+    uv run python os/aim.py --project "$P" --contract "$P/contract.toml" || true
+
+    step "with-os: residual, rival note, dossier — the jump path"
+    uv run python os/steer.py residual --project "$P"
+    NOTE_ID=$(uv run python os/note.py --project "$P" --kind rival_draft --body "$EX/judgments/rival.json" \
+      | python3 -c "import json,sys; print(json.load(sys.stdin)['note_id'])")
+    uv run python os/steer.py dossier --project "$P" --rival "$NOTE_ID" > "$P/dossier.json"
+
+    step "with-os: jump — adopt the successor frame"
+    # review.json and approval.json are pre-written so the example runs
+    # unattended; in a real project they come from an independent session and you.
+    cp "$EX/contracts/gen2.toml" "$P/contract.toml"
+    uv run python os/jump.py adopt --project "$P" \
+      --dossier "$P/dossier.json" --successor "$P/contract.toml" \
+      --review "$EX/judgments/review.json" --approval "$EX/judgments/approval.json"
+    git -C "$P" add -A && git -C "$P" commit -q -m "generation 2 contract"
+    uv run python os/seal.py contract --project "$P"
+
+    step "with-os: generation 2 (2-opt), one run"
+    aim_run "$P"
+    seal_cycle "$P" "diagnosis-gen2.json"
     OS_SUMMARIES="$OS_SUMMARIES $SUMMARY"
-done
+}
 
-step "with-os: aim again — the budget refuses (this refusal IS the workflow)"
-uv run python os/aim.py --project "$P2" --contract "$P2/contract.toml" || true
+compare() {
+    step "compare: where the governed project stands"
+    uv run python os/journal.py status --project "$BASE/with-os"
+    step "compare: chart (skipped if matplotlib is missing)"
+    python3 "$EX/plot.py" --loop-only "$SUMMARY_LOOP_ONLY" --with-os $OS_SUMMARIES \
+      --jump-at 30 --out "$BASE/loop-vs-os.png" || true
+    printf '\nexample projects left at %s\n' "$BASE"
+}
 
-step "with-os: residual, rival note, dossier — the jump path"
-uv run python os/steer.py residual --project "$P2"
-NOTE_ID=$(uv run python os/note.py --project "$P2" --kind rival_draft --body "$EX/judgments/rival.json" \
-  | python3 -c "import json,sys; print(json.load(sys.stdin)['note_id'])")
-uv run python os/steer.py dossier --project "$P2" --rival "$NOTE_ID" > "$P2/dossier.json"
-
-step "with-os: jump — adopt the successor frame"
-# review.json and approval.json are pre-written so the example runs unattended;
-# in a real project they come from an independent session and from you.
-cp "$EX/contracts/gen2.toml" "$P2/contract.toml"
-uv run python os/jump.py adopt --project "$P2" \
-  --dossier "$P2/dossier.json" --successor "$P2/contract.toml" \
-  --review "$EX/judgments/review.json" --approval "$EX/judgments/approval.json"
-git -C "$P2" add -A && git -C "$P2" commit -q -m "generation 2 contract"
-uv run python os/seal.py contract --project "$P2"
-
-step "with-os: generation 2 (2-opt), one run"
-aim_run "$P2"
-uv run python os/seal.py run --project "$P2" --summary "$SUMMARY" --ledger "$LEDGER"
-uv run python os/seal.py diagnosis --project "$P2" --file "$EX/judgments/diagnosis-gen2.json"
-uv run python os/journal.py anchor --project "$P2"
-git -C "$P2" add -A && git -C "$P2" commit -q -m "anchor"
-OS_SUMMARIES="$OS_SUMMARIES $SUMMARY"
-
-step "status — where the governed project now stands"
-uv run python os/journal.py status --project "$P2"
-
-step "render the comparison chart (skipped if matplotlib is missing)"
-python3 "$EX/plot.py" --loop-only "$SUMMARY1" --with-os $OS_SUMMARIES \
-  --jump-at 30 --out "$BASE/loop-vs-os.png" || true
-
-printf '\nexample projects left at %s\n' "$BASE"
+run_loop_only
+run_with_os
+compare
