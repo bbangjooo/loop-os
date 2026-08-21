@@ -6,9 +6,11 @@
 # What it does:
 #   1. Clones (or updates) the repo into $LOOP_OS_HOME (default: ~/loop-os).
 #   2. Installs Python dependencies with uv.
-#   3. Installs the agent skill into every harness it can find:
+#   3. Installs the agent skill and slash commands into every harness it finds:
 #        Claude Code -> ~/.claude/skills/loop-os/SKILL.md
+#                       ~/.claude/commands/loop-os/*.md   (/loop-os:bootstrap)
 #        Codex       -> ~/.agents/skills/loop-os/SKILL.md
+#                       ~/.codex/prompts/loop-os-*.md     (/loop-os-bootstrap)
 #
 # It never touches your projects, shell profile, or PATH. There is no CLI
 # product and no daemon — the instruments in os/ are plain scripts run by path.
@@ -36,6 +38,7 @@ info "Installing Python dependencies (uv sync)"
 (cd "$LOOP_OS_HOME" && uv sync)
 
 installed_skill=""
+
 install_skill() {
     harness_name="$1"; skill_dir="$2"
     mkdir -p "$skill_dir"
@@ -44,14 +47,30 @@ install_skill() {
     installed_skill="yes"
 }
 
+# Commands ship with a __LOOP_OS_HOME__ placeholder so the agent knows where to
+# run the instruments from. $2 is a prefix applied to the installed filename —
+# Claude Code namespaces by directory, Codex by filename.
+install_commands() {
+    command_dir="$1"; prefix="$2"; invocation="$3"
+    mkdir -p "$command_dir"
+    for cmd in "$LOOP_OS_HOME"/commands/*.md; do
+        [ -f "$cmd" ] || continue
+        name="$(basename "$cmd")"
+        sed "s|__LOOP_OS_HOME__|$LOOP_OS_HOME|g" "$cmd" > "$command_dir/$prefix$name"
+    done
+    info "Installed commands -> $command_dir  (try $invocation)"
+}
+
 # Claude Code
 if [ -d "$HOME/.claude" ]; then
     install_skill "Claude Code" "$HOME/.claude/skills/loop-os"
+    install_commands "$HOME/.claude/commands/loop-os" "" "/loop-os:bootstrap"
 fi
 
-# Codex (skills live under ~/.agents/skills; ~/.codex marks an install)
+# Codex (skills live under ~/.agents/skills, prompts under ~/.codex/prompts)
 if [ -d "$HOME/.codex" ] || [ -d "$HOME/.agents" ]; then
     install_skill "Codex" "$HOME/.agents/skills/loop-os"
+    install_commands "$HOME/.codex/prompts" "loop-os-" "/loop-os-bootstrap"
 fi
 
 if [ -z "$installed_skill" ]; then

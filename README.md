@@ -26,20 +26,49 @@ The LLM proposes directions and interprets results, but its judgment enters the 
 curl -fsSL https://raw.githubusercontent.com/bbangjooo/loop-os/main/install.sh | sh
 ```
 
-This clones the repo into `~/loop-os`, installs dependencies with [uv](https://docs.astral.sh/uv/), installs the agent skill into every harness it finds — Claude Code (`~/.claude/skills/loop-os`) and Codex (`~/.agents/skills/loop-os`) — and runs the test gate. Requirements: Python ≥ 3.11, git, uv, and an agent harness (Claude Code or Codex) as the outer-loop runtime.
+This clones the repo into `~/loop-os`, installs dependencies with [uv](https://docs.astral.sh/uv/), installs the agent skill and slash commands into every harness it finds, and runs the test gate. Requirements: Python ≥ 3.11, git, uv, and an agent harness as the outer-loop runtime.
 
-There is no CLI product and no daemon. The instruments in `os/` are plain scripts, always run by path from this repo (the directory has no `__init__.py`, so it never shadows Python's stdlib `os` module).
+The examples below are Claude Code. Codex gets the same commands under flat names — `/loop-os-run-example`, `/loop-os-bootstrap`, `/loop-os-cycle`, `/loop-os-status`.
 
-### 1. Bootstrap and register
+The installer adds four slash commands to Claude Code. Run them from inside the project you want to work on.
 
-Your project is any git repository. Loop OS adds a **contract** (what to optimize, under which guards, with how much budget), a **journal** (`.journal/`, the only canonical record — hash-chained, gitignored, written only by instruments), and **specs** the kernel runs.
+### 1. See it work
 
-```bash
-cd ~/loop-os
-uv run python os/journal.py bootstrap --project ~/my-project --project-id my-project
-# author contract.toml in your project (see below), then:
-uv run python os/seal.py contract --project ~/my-project --contract ~/my-project/contract.toml
 ```
+/loop-os:run-example
+```
+
+One complete cycle on a throwaway project — nothing of yours is touched. `value.txt` holds a number, lower is better, and a scripted stand-in plays the agent. Every step calls the real instruments:
+
+```
+== aim — compile the contract into a kernel spec
+{ "status": "SPEC_ISSUED", "loop_id": "hill-descent-g1-001", "draw": 3, "budget_remaining": 3,
+  "note": "commit the spec before running; the kernel refuses an untracked in-worktree spec" }
+
+== run the kernel — the only step that executes anything
+  iteration 1  accepted  10 -> 9      iteration 2  accepted  9 -> 8      iteration 3  accepted  8 -> 7
+
+== seal the run
+{ "status": "RUN_SEALED", "trials_denominator": 3,
+  "next_required": "author a diagnosis file and seal it (os/seal.py diagnosis)" }
+
+== anchor the journal head into git
+{ "status": "ANCHORED", "head": "e9ee1b01548c…", "events": 5 }
+
+== status — where the project now stands
+{ "status": "OK", "generation": 1, "runs_sealed": 1, "drawn_by_generation": { "1": 3 },
+  "next_required": "issue the next spec (os/aim.py)" }
+```
+
+The objective fell 10 → 7 in three accepted iterations, the guard passed on each one, and the generation has 3 of its 6 iterations left — drawn up front, and gone whether or not the run had worked. What the example deliberately doesn't show: a real agent, a real question, and a REJECTED verdict. Its mechanism is true by construction, which a real contract never is.
+
+### 2. Bootstrap your own project
+
+```
+/loop-os:bootstrap
+```
+
+Your project is any git repository. Loop OS adds a **contract** (what to optimize, under which guards, with how much budget) and a **journal** (`.journal/`, the only canonical record — hash-chained, gitignored, written only by instruments). Bootstrap reads the repo, asks for what it can't infer — the real goal behind the number, the falsifiable mechanism, the budget — then creates the journal, drafts `contract.toml`, and seals it.
 
 A minimal contract:
 
@@ -80,46 +109,20 @@ command = ["pytest", "-q"]
 kind = "exit_zero"
 ```
 
-### 2. Run the cycle
+### 3. Run cycles
 
-```bash
-uv run python os/journal.py status --project ~/my-project   # tells you the next required input
-uv run python os/aim.py --project ~/my-project --contract ~/my-project/contract.toml
-cd ~/my-project && git add -A && git commit -m "spec"        # kernel refuses untracked specs
-cd ~/loop-os && uv run python kernel/loop.py --repo ~/my-project run loop/runs/<date>-<loop_id>/spec.yaml
-uv run python os/seal.py run --project ~/my-project \
-  --summary ~/my-project/loop/runs/<...>/summary.json \
-  --ledger  ~/my-project/.git/experiment-loop/<loop_id>/ledger.jsonl
-# author diagnosis.json (verdict + what moved + mechanism + counterfactual + next question), then:
-uv run python os/seal.py diagnosis --project ~/my-project --file diagnosis.json
-uv run python os/journal.py anchor --project ~/my-project    # commit .journal-anchor.json
+```
+/loop-os:cycle       # one full cycle: aim → run → seal → diagnose → steer → anchor
+/loop-os:status      # read-only: chain health, budget, next required action
 ```
 
-`aim` is fail-closed. It refuses — with a code that names the missing input — when the journal is broken (`R1`), the contract drifted since registration (`R2`), a run is unsealed (`R3`), a diagnosis is missing (`R4`), or the generation budget can't cover the draw (`R5`). The refusal *is* the workflow: fix the named input and aim again.
+`aim` is fail-closed. It refuses — with a code that names the missing input — when the journal is broken (`R1`), the contract drifted since registration (`R2`), a run is unsealed (`R3`), a diagnosis is missing (`R4`), or the generation budget can't cover the draw (`R5`). The refusal *is* the workflow: fix the named input and aim again, which is exactly what the cycle command does.
 
-### 3. Read, remember, and jump
+### 4. Jump when the frame dies
 
-```bash
-uv run python os/steer.py frame-health --project ~/my-project   # evidence + 3 interpretation requests, no verdicts
-uv run python os/note.py --project ~/my-project --kind anomaly --body note.json --refs <event-id>
-uv run python os/memory.py extract --project ~/my-project       # distill sealed diagnoses into claims
-```
+When a hypothesis class dies (three REJECTED diagnoses) or a generation's budget is spent, you change frames with a **jump** — the only path from advisory notes to a new contract. Adoption is one atomic journal event citing four files: the dossier of what the rejections share, the successor contract (generation + 1), an independent review, and a human approval. Registering a higher generation without that event is refused, and until the successor draws budget the adoption can be revoked.
 
-When a hypothesis class dies (three REJECTED diagnoses) or a generation's budget is spent, you change frames with a **jump** — the only path from advisory notes to a new contract:
-
-```bash
-uv run python os/steer.py residual --project ~/my-project             # what the rejections share
-# author a rival_draft note, then:
-uv run python os/steer.py dossier --project ~/my-project --rival <note-id> > dossier.json
-# author the successor contract (generation + 1), an independent review, and a human approval file, then:
-uv run python os/jump.py adopt --project ~/my-project \
-  --dossier dossier.json --successor contract.toml --review review.json --approval approval.json
-uv run python os/seal.py contract --project ~/my-project --contract ~/my-project/contract.toml
-```
-
-Adoption is one atomic journal event citing the four files' digests — no receipts, no phases. Registering a higher generation without that event is refused. Until the successor draws budget, an adoption can be undone (`os/jump.py revoke`), which also voids the registration that cited it.
-
-The full operating procedure the agent follows is [SKILL.md](SKILL.md).
+A jump is a human decision, so it stays a deliberate sequence of instrument calls rather than a one-word command — the full operating procedure, including every raw instrument invocation, is [SKILL.md](SKILL.md).
 
 ## Architecture
 
