@@ -28,9 +28,9 @@ curl -fsSL https://raw.githubusercontent.com/bbangjooo/loop-os/main/install.sh |
 
 This clones the repo into `~/loop-os`, installs dependencies with [uv](https://docs.astral.sh/uv/), installs the agent skill and slash commands into every harness it finds, and runs the test gate. Requirements: Python ≥ 3.11, git, uv, and an agent harness as the outer-loop runtime.
 
-The examples below are Claude Code. Codex gets the same commands under flat names — `/loop-os-run-example`, `/loop-os-bootstrap`, `/loop-os-cycle`, `/loop-os-status`.
+The examples below are Claude Code. Codex gets the same commands under flat names — `/loop-os-run-example`, `/loop-os-bootstrap`, `/loop-os-contract`, `/loop-os-cycle`, `/loop-os-status`.
 
-The installer adds four slash commands to Claude Code. Run them from inside the project you want to work on.
+The installer adds five slash commands to Claude Code. Run them from inside the project you want to work on.
 
 ### 1. See it work
 
@@ -62,13 +62,29 @@ One complete cycle on a throwaway project — nothing of yours is touched, no AP
 
 The round got 24% shorter, but four of the eight proposals made it worse and were reverted by `git reset --hard` — the loop is real, not a scripted descent. The sealed denominator is 8, not 4, because the budget counts what you tried; and the generation has 8 of its 16 iterations left, drawn up front and gone whether or not the run had worked.
 
+![Delivery round — before and after](examples/delivery-round/result.svg)
+
 ### 2. Bootstrap your own project
 
 ```
 /loop-os:bootstrap
 ```
 
-Your project is any git repository. Loop OS adds a **contract** (what to optimize, under which guards, with how much budget) and a **journal** (`.journal/`, the only canonical record — hash-chained, gitignored, written only by instruments). Bootstrap reads the repo, asks for what it can't infer — the real goal behind the number, the falsifiable mechanism, the budget — offers a per-frame git worktree when you'll run more than one frame, then creates the journal, drafts `contract.toml`, has the draft independently reviewed against a defect checklist, and seals it. The contract is the one artifact nothing else in the system re-checks, so the review happens before the seal, not after.
+- Your project is any git repository. Loop OS adds a **contract** (what to optimize, under which guards, with how much budget) and a **journal** (`.journal/` — hash-chained, gitignored, written only by instruments).
+- Offers a per-frame git worktree when you'll run more than one frame — the kernel commits and reverts in the working tree, so frames sharing a checkout collide.
+- Creates the journal, then hands off to the contract builder below.
+
+### 3. Describe the problem, get a contract
+
+```
+/loop-os:contract   the test suite takes 40 minutes; I want it under 10 without losing coverage
+```
+
+The contract is where Loop OS projects are won or lost, so it has its own builder:
+
+- Turns a plain-language problem statement into the four contract questions — objective, falsifiable mechanism, guards, budget — inferring what it can from the repo and asking the rest in one batch.
+- Writes the evaluator if no command prints the number yet.
+- Has the draft independently reviewed against a defect checklist (proxy honesty, gameable guards, unpinned surfaces, indefensible budget) and refuses to seal over unresolved defects. The contract is the one artifact nothing else in the system re-checks, so the review happens before the seal, not after.
 
 A minimal contract:
 
@@ -109,7 +125,7 @@ command = ["pytest", "-q"]
 kind = "exit_zero"
 ```
 
-### 3. Run cycles
+### 4. Run cycles
 
 ```
 /loop-os:cycle       # one full cycle: aim → run → seal → diagnose → steer → anchor
@@ -118,7 +134,7 @@ kind = "exit_zero"
 
 `aim` is fail-closed. It refuses — with a code that names the missing input — when the journal is broken (`R1`), the contract drifted since registration (`R2`), a run is unsealed (`R3`), a diagnosis is missing (`R4`), or the generation budget can't cover the draw (`R5`). The refusal *is* the workflow: fix the named input and aim again, which is exactly what the cycle command does.
 
-### 4. Jump when the frame dies
+### 5. Jump when the frame dies
 
 When a hypothesis class dies (three REJECTED diagnoses) or a generation's budget is spent, you change frames with a **jump** — the only path from advisory notes to a new contract. Adoption is one atomic journal event citing four files: the dossier of what the rejections share, the successor contract (generation + 1), an independent review, and a human approval. Registering a higher generation without that event is refused, and until the successor draws budget the adoption can be revoked.
 

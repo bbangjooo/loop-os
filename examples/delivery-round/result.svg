@@ -1,0 +1,28 @@
+<svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="dr-title dr-desc">
+  <title id="dr-title">Delivery round — before and after one Loop OS run</title>
+  <desc id="dr-desc">The seed tour crosses itself; after eight iterations of random 2-opt proposals, four accepted and four reverted, the tour is 24 percent shorter. A step chart shows the objective per iteration with reverted proposals as hollow marks off the line.</desc>
+  <rect width="100%" height="100%" fill="#f7f5f0"/>
+  
+    <rect x="24" y="16" width="200" height="200" rx="6" fill="#ffffff" stroke="rgba(43,41,37,0.12)" stroke-width="1"/>
+    <polygon points="123.6,116.4 50.5,74.2 125.3,200.0 165.8,43.3 50.5,158.6 196.7,158.6 81.4,43.3 196.7,74.2 81.4,189.5 123.6,32.0 165.8,189.5 40.0,118.1" fill="none" stroke="#6b665c" stroke-width="1.2"/>
+    <circle cx="123.6" cy="116.4" r="2.5" fill="#2b2925"/><circle cx="196.7" cy="74.2" r="2.5" fill="#2b2925"/><circle cx="165.8" cy="43.3" r="2.5" fill="#2b2925"/><circle cx="123.6" cy="32.0" r="2.5" fill="#2b2925"/><circle cx="81.4" cy="43.3" r="2.5" fill="#2b2925"/><circle cx="50.5" cy="74.2" r="2.5" fill="#2b2925"/><circle cx="40.0" cy="118.1" r="2.5" fill="#2b2925"/><circle cx="50.5" cy="158.6" r="2.5" fill="#2b2925"/><circle cx="81.4" cy="189.5" r="2.5" fill="#2b2925"/><circle cx="125.3" cy="200.0" r="2.5" fill="#2b2925"/><circle cx="165.8" cy="189.5" r="2.5" fill="#2b2925"/><circle cx="196.7" cy="158.6" r="2.5" fill="#2b2925"/>
+    <text x="24" y="236" fill="#6b665c" font-size="9" font-family="'Geist Mono', 'SFMono-Regular', Menlo, monospace">before</text>
+    <text x="224" y="236" fill="#6b665c" font-size="9" font-family="'Geist Mono', 'SFMono-Regular', Menlo, monospace" text-anchor="end" font-weight="600">2015.9</text>
+  
+    <rect x="256" y="16" width="200" height="200" rx="6" fill="#ffffff" stroke="rgba(43,41,37,0.12)" stroke-width="1"/>
+    <polygon points="355.6,116.4 357.3,200.0 282.5,74.2 282.5,158.6 313.4,189.5 428.7,74.2 428.7,158.6 313.4,43.3 397.8,43.3 355.6,32.0 397.8,189.5 272.0,118.1" fill="none" stroke="#a63d2f" stroke-width="1.2"/>
+    <circle cx="355.6" cy="116.4" r="2.5" fill="#2b2925"/><circle cx="428.7" cy="74.2" r="2.5" fill="#2b2925"/><circle cx="397.8" cy="43.3" r="2.5" fill="#2b2925"/><circle cx="355.6" cy="32.0" r="2.5" fill="#2b2925"/><circle cx="313.4" cy="43.3" r="2.5" fill="#2b2925"/><circle cx="282.5" cy="74.2" r="2.5" fill="#2b2925"/><circle cx="272.0" cy="118.1" r="2.5" fill="#2b2925"/><circle cx="282.5" cy="158.6" r="2.5" fill="#2b2925"/><circle cx="313.4" cy="189.5" r="2.5" fill="#2b2925"/><circle cx="357.3" cy="200.0" r="2.5" fill="#2b2925"/><circle cx="397.8" cy="189.5" r="2.5" fill="#2b2925"/><circle cx="428.7" cy="158.6" r="2.5" fill="#2b2925"/>
+    <text x="256" y="236" fill="#6b665c" font-size="9" font-family="'Geist Mono', 'SFMono-Regular', Menlo, monospace">after</text>
+    <text x="456" y="236" fill="#a63d2f" font-size="9" font-family="'Geist Mono', 'SFMono-Regular', Menlo, monospace" text-anchor="end" font-weight="600">1525.8</text>
+  
+    <rect x="488" y="16" width="208" height="200" rx="6" fill="#ffffff" stroke="rgba(43,41,37,0.12)" stroke-width="1"/>
+    <path d="M 504.0 43.6 H 526.0 V 79.7 H 548.0 V 80.4 H 570.0 V 163.9 H 592.0 V 163.9 H 614.0 V 163.9 H 636.0 V 163.9 H 658.0 V 188.4 H 680.0 V 188.4" fill="none" stroke="#2b2925" stroke-width="1.2"/>
+    <circle cx="526.0" cy="79.7" r="3" fill="#2b2925"/><circle cx="548.0" cy="80.4" r="3" fill="#2b2925"/><circle cx="570.0" cy="163.9" r="3" fill="#2b2925"/><circle cx="592.0" cy="152.7" r="3" fill="#ffffff" stroke="#a63d2f" stroke-width="1.2"/><circle cx="614.0" cy="163.9" r="3" fill="#ffffff" stroke="#a63d2f" stroke-width="1.2"/><circle cx="636.0" cy="163.9" r="3" fill="#ffffff" stroke="#a63d2f" stroke-width="1.2"/><circle cx="658.0" cy="188.4" r="3" fill="#2b2925"/><circle cx="680.0" cy="158.4" r="3" fill="#ffffff" stroke="#a63d2f" stroke-width="1.2"/>
+    <text x="504" y="35.6" fill="#6b665c" font-size="9" font-family="'Geist Mono', 'SFMono-Regular', Menlo, monospace">2016</text>
+    <text x="680" y="180.4" fill="#2b2925" font-size="9" font-family="'Geist Mono', 'SFMono-Regular', Menlo, monospace" text-anchor="end" font-weight="600">1526</text>
+    <text x="488" y="236" fill="#6b665c" font-size="9" font-family="'Geist Mono', 'SFMono-Regular', Menlo, monospace">objective per iteration</text>
+    <circle cx="494" cy="249" r="3" fill="#2b2925"/>
+    <text x="502" y="252" fill="#8b857b" font-size="9" font-family="'Geist Mono', 'SFMono-Regular', Menlo, monospace">kept</text>
+    <circle cx="554" cy="249" r="3" fill="#ffffff" stroke="#a63d2f" stroke-width="1.2"/>
+    <text x="562" y="252" fill="#8b857b" font-size="9" font-family="'Geist Mono', 'SFMono-Regular', Menlo, monospace">reverted</text>
+</svg>

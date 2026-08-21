@@ -75,4 +75,9 @@ git -C "$P" commit -q -m "anchor"
 step "status — where the project now stands"
 uv run python os/journal.py status --project "$P"
 
+step "render the result chart"
+python3 "$LOOP_OS_HOME/examples/delivery-round/plot.py" \
+  --cities "$P/cities.json" --before "$SEED/tour.json" --after "$P/tour.json" \
+  --summary "$P/$(dirname "$SPEC")/summary.json" --out "$P/result.svg"
+
 printf '\nexample project left at %s\n' "$P"
