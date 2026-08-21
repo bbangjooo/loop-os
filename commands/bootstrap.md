@@ -28,24 +28,66 @@ Do this in order, stopping at the first thing you cannot determine on your own:
    mechanism — an unfalsifiable `[frame] mechanism` is the single most common way a
    Loop OS project ends up measuring nothing.
 
-4. **Create the journal.**
+4. **Offer to isolate the frame in its own worktree.** A generation climbs one
+   hypothesis class, and the kernel commits and reverts inside the working tree, so
+   two frames sharing one checkout will collide. If the user intends to run more than
+   one frame, or wants the climb kept off their working branch, create a worktree for
+   this frame and bootstrap *there* — `$P` becomes the worktree path for every step
+   below:
+   ```
+   git -C <repo> worktree add ../<repo>-<frame> -b <frame>
+   ```
+   Use an orphan branch (`git switch --orphan`) only when the frame should not
+   inherit the repo's history at all. Skip this whole step for a single-frame project
+   — an unnecessary worktree is just another path to keep straight.
+
+5. **Create the journal.**
    ```
    uv run python os/journal.py bootstrap --project $P --project-id <id>
    ```
 
-5. **Author `$P/contract.toml`** using the schema in `__LOOP_OS_HOME__/README.md`.
+6. **Author `$P/contract.toml`** using the schema in `__LOOP_OS_HOME__/README.md`.
    Requirements worth restating: `[stages.objective].command` must print one number
    on its last line; `proxy_license` must name the clause that licenses that number
    as a proxy for the real goal; `integrity` must pin the evaluator and any data
    surface a change could quietly rewrite; every guard must already pass on the
    current commit.
 
-6. **Seal it.**
+7. **Review the contract before sealing it — do not skip this.** Every iteration of
+   the generation inherits whatever this file says, and once sealed the contract is
+   integrity-pinned, so a flaw here is not something later cycles can notice. This is
+   the one artifact in the system that nothing else checks: runs are sealed against
+   it, diagnoses are judged against it, and the jump path reviews only its successor.
+
+   Dispatch a subagent to review the draft against the checklist below. Give it the
+   contract, the evaluator, and the guard commands, and ask for a defect list — not
+   an opinion:
+
+   - **Objective** — does the command actually print one number on its last line, on
+     the current commit? Run it and confirm.
+   - **Proxy** — does `proxy_license` name a real clause, or does it restate the
+     objective in other words? "The number is the goal" is only honest when nothing
+     outside the system decides the verdict.
+   - **Mechanism** — is `[frame] mechanism` falsifiable? Ask what observation would
+     refute it. If nothing would, it is a wish, not a mechanism.
+   - **Guards** — do they all pass on the current commit, and does at least one of
+     them fail when the objective is gamed the obvious way (deleting work, weakening
+     a test, shrinking the input)? A guard set that cannot fail proves nothing.
+   - **Integrity pins** — do they cover the evaluator *and* every data surface a
+     change could quietly rewrite? An unpinned evaluator makes every later number
+     unfalsifiable.
+   - **Budget** — is `iterations_total` a number the user can defend as a
+     multiple-testing contract, or a round number chosen for comfort?
+
+   Fix what the review finds, then re-run the review if the contract changed
+   materially. Report unresolved defects to the user rather than sealing over them.
+
+8. **Seal it.**
    ```
    uv run python os/seal.py contract --project $P --contract $P/contract.toml
    ```
 
-7. **Verify and report.** Run `uv run python os/journal.py status --project $P` and
+9. **Verify and report.** Run `uv run python os/journal.py status --project $P` and
    tell the user the sealed contract digest, the objective's current value, the
    drawn budget, and the exact next command in the cycle. If a guard fails or the
    objective command does not print a number, say so plainly and stop — a contract

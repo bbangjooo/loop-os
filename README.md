@@ -68,7 +68,7 @@ The round got 24% shorter, but four of the eight proposals made it worse and wer
 /loop-os:bootstrap
 ```
 
-Your project is any git repository. Loop OS adds a **contract** (what to optimize, under which guards, with how much budget) and a **journal** (`.journal/`, the only canonical record — hash-chained, gitignored, written only by instruments). Bootstrap reads the repo, asks for what it can't infer — the real goal behind the number, the falsifiable mechanism, the budget — then creates the journal, drafts `contract.toml`, and seals it.
+Your project is any git repository. Loop OS adds a **contract** (what to optimize, under which guards, with how much budget) and a **journal** (`.journal/`, the only canonical record — hash-chained, gitignored, written only by instruments). Bootstrap reads the repo, asks for what it can't infer — the real goal behind the number, the falsifiable mechanism, the budget — offers a per-frame git worktree when you'll run more than one frame, then creates the journal, drafts `contract.toml`, has the draft independently reviewed against a defect checklist, and seals it. The contract is the one artifact nothing else in the system re-checks, so the review happens before the seal, not after.
 
 A minimal contract:
 
