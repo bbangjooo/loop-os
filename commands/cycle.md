@@ -43,7 +43,8 @@ The pass:
 Then report to the user in a few sentences: the verdict, the objective before and
 after, iterations drawn and left in the generation, and the next required action.
 If the generation's budget is now spent or the hypothesis class has three REJECTED
-diagnoses, say so — the next move is a jump, run as its own pass (`/loop-os:jump`).
-An ordinary jump (the successor keeps `[core]` unchanged) adopts with auto
-approval; one that touches `[core]` waits for the human. Do not start it inside
-this cycle.
+diagnoses, say so — the next move is a jump. Run it yourself, as its own pass
+(`/loop-os:jump`), right after reporting: an ordinary jump (the successor keeps the
+constitution unchanged) needs no human trigger and no human approval. Only a
+constitutional jump — one that must touch `[core]`, the measurement, or the budget
+— stops and waits for the human.

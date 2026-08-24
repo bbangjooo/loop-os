@@ -94,7 +94,9 @@ OS 밖에서 1회 일어나며, 여기의 verdict는 run 단위 가설 판정일
 
 ## jump (frame 전환)
 
-class가 닫히거나(REJECTED 3회) 예산이 종착이면 (`/loop-os:jump`가 이 절차를 한 번 수행한다):
+class가 닫히거나(REJECTED 3회) 예산이 종착이면 — 사람을 기다리지 말고 네가 스스로
+이 절차를 실행한다 (`/loop-os:jump`가 한 번의 pass). ordinary jump는 트리거부터
+승인까지 인간 개입 0이다; constitutional jump에서만 멈추고 사람을 부른다:
 
 ```
 1. uv run python os/steer.py residual --project $P     # 닫힌 class의 기각 mechanism 목록 + 과제
