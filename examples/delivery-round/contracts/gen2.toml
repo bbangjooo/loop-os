@@ -4,6 +4,9 @@ integrity = ["objective.py", "guard.py"]
 [project]
 id = "delivery-round"
 
+[core]
+goal = "shorten the delivery round: minimize the total route distance printed by objective.py"
+
 [frame]
 generation = 2
 class = "two_opt"

@@ -94,20 +94,39 @@ OS 밖에서 1회 일어나며, 여기의 verdict는 run 단위 가설 판정일
 
 ## jump (frame 전환)
 
-class가 닫히거나(REJECTED 3회) 예산이 종착이면:
+class가 닫히거나(REJECTED 3회) 예산이 종착이면 (`/loop-os:jump`가 이 절차를 한 번 수행한다):
 
 ```
 1. uv run python os/steer.py residual --project $P     # 닫힌 class의 기각 mechanism 목록 + 과제
 2. rival_draft note 저작 (prior binding 준수)
 3. uv run python os/steer.py dossier --project $P --rival <note_id> → 파일로 저장
-4. successor contract 저작 (generation = 현재 + 1)
-5. 독립 리뷰: 별도 세션/모델 라우트에서 저작한 review.json
+4. successor contract 저작 (generation = 현재 + 1, [core]는 그대로 복사)
+5. 독립 리뷰: 별도 컨텍스트의 blind subagent(가능하면 다른 모델 라우트)가 dossier와
+   successor contract 두 파일만 보고 저작한 review.json
    {"reviewer": ..., "independent": true, "verdict": "PASS", "notes": ...}
-6. 사람 승인: approval.json {"approved_by": ..., "statement": ...} — 사람이 쓴다.
-   네가 대필하지 않는다.
+6. 승인 — 2단계:
+   · ordinary jump: approval.json {"mode": "auto", "basis": "core-preserved"} —
+     네가 써도 된다. os/jump.py가 파일과 journal에서 직접 재검증한다:
+     [core] canonical 불변 · project.id/[revert] 유지 · budget 비인상 · stage
+     objective 측정 필드(command/direction/margin/target/proxy_license) 집합
+     동일 · 모든 successor stage가 현행 guard 전부를 각자 보유(decoy stage에
+     몰아두기 불가) · top-level integrity가 현행 pin 전부(스테이지 pin 포함)를
+     보유 · 현재 frame이 실제로 닫힘(class REJECTED 3회, 또는 예산 전량 인출 +
+     모든 run 봉인/포기 + 진단 완료). 하나라도 어긋나면 auto는 거부된다.
+   · constitutional jump (위 조건 밖 전부 — [core]·측정·guard 변경, 예산 인상,
+     열린 frame에서의 jump): approval.json {"approved_by": ..., "statement": ...}
+     — 사람이 쓴다. 네가 대필하지 않는다.
 7. uv run python os/jump.py adopt --project $P --dossier D --successor S --review R --approval A
 8. os/seal.py contract로 successor 등록 → os/aim.py (새 generation 예산)
 ```
+
+`[core]`는 contract의 헌법이다 — goal 등 저자가 bootstrap에서 동결한 절. evaluator는
+stages에 살지만 측정 필드는 헌법의 일부로 함께 동결된다 — 성공기준을 느슨하게
+만드는 모든 경로(goal 문구, 측정 교체, guard 삭제)가 사람 게이트를 지난다. 등록된
+contract에 [core]가 없으면 auto 단계 자체가 없다 — 모든 jump가 constitutional이다.
+successor는 등록 contract와 **다른 경로**에 저작하라 — 등록된 텍스트가 제자리에
+없으면 auto는 기준선을 세울 수 없어 거부된다. 채택 후 successor를 contract.toml로
+복사해 등록하면 digest가 동일해 게이트를 그대로 통과한다.
 
 7의 채택 이벤트 없이는 8이 거부된다 (generation bump 게이트). 파일이 없으면 이벤트를
 만들 수 없다 — 그것이 유일한 집행이다.

@@ -129,7 +129,7 @@ outer loop (OS: 조준, 시간~일 단위, LLM 판단이 파일로 유입)
 | `journal` (seal/verify/replay) | 봉인 대상 파일들 + journal | append 1회 / 검증 리포트 | ~0.6k |
 | `aim` | contract.toml, journal, (직전 run seal digest, 직전 diagnosis digest) | spec.yaml | ~0.7k |
 | `steer` (projections) | journal, notes | status / frame-health / residual / dossier JSON | ~0.6k |
-| `jump` | dossier·successor contract·독립 리뷰·human 승인 파일 4개의 digest | 채택 이벤트 1개 (원자 append) + successor contract 확정 | ~0.4k |
+| `jump` | dossier·successor contract·독립 리뷰·승인 파일 4개의 digest (승인은 2단계 — [core] 보존 ordinary jump는 auto, [core] 변경 constitutional jump는 human) | 채택 이벤트 1개 (원자 append, approval_mode 기록) + successor contract 확정 | ~0.4k |
 | `memory` | journal, diagnosis 파일 | claims.jsonl append, retrieval 결과 | ~0.4k |
 | `note` | agent 저작 note | notes.jsonl append (검열 통과 시) | ~0.3k |
 
@@ -138,7 +138,7 @@ outer loop (OS: 조준, 시간~일 단위, LLM 판단이 파일로 유입)
 계기별 핵심 거부 규칙(fail-closed):
 
 - `aim`: 직전 run의 seal 이벤트 digest가 없으면 거부. 직전 run의 diagnosis 파일 digest가 없으면 거부. generation 예산(journal replay로 계산) 소진 시 거부.
-- `jump`: 4개 입력 파일 중 하나라도 없거나 digest 불일치면 이벤트를 만들 수 없다. FSM·receipt 재사용 검사 불필요 — 채택은 원자 이벤트 1개다.
+- `jump`: 4개 입력 파일 중 하나라도 없거나 digest 불일치면 이벤트를 만들 수 없다. FSM·receipt 재사용 검사 불필요 — 채택은 원자 이벤트 1개다. auto 승인은 successor가 등록 contract의 [core]를 canonical 동일하게 보존하고, project.id·[revert] 유지·budget 비인상·objective 측정 필드(command/direction/margin/target/proxy_license) 집합 동일·모든 stage가 현행 guard 전부 보유(per-stage — decoy stage 몰아두기 불가)·top-level integrity가 현행 pin 전부 보유이며, 현재 frame이 journal replay 기준으로 닫혀 있을 때(class REJECTED 3회 — steer와 동일 상수·동일 class 스코프 — 또는 예산 전량 인출 + 전 run 봉인/포기 + 진단 완료)만 — jump가 파일과 journal에서 직접 재검증하며, [core]가 없는 contract에는 auto 단계가 없다. 그 밖의 모든 변경은 human 승인 필수 (성공기준 loosening은 항상 사람 게이트를 지난다).
 - `note`: signal-bearing note(anomaly, assumption_conflict 등)는 evidence ref digest 없이는 거부.
 - `seal`: 봉인 대상 파일 부재 시 거부. journal truncated tail은 append 전 복구(kernel ledger와 동일 패턴).
 

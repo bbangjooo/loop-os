@@ -163,3 +163,34 @@ def test_registration_seal_then_aim(project: Path, objective: Path, agent: Path)
     issued = aim.issue(project)
     assert issued["status"] == "SPEC_ISSUED"
     assert issued["loop_id"] == "toy-descent-g1-001"
+
+
+def test_core_section_is_strictly_validated(tmp_path: Path) -> None:
+    from tests.conftest import CONTRACT_TEMPLATE
+
+    base = CONTRACT_TEMPLATE.format(total=6, per_run=3, objective="o.py", agent="a.py")
+    goal_line = 'goal = "drive the number in value.txt to 0"'
+    path = tmp_path / "c.toml"
+
+    path.write_text(base, encoding="utf-8")
+    assert aim.load_contract(path)["core"]["goal"].startswith("drive")
+
+    path.write_text(base.replace(goal_line, 'other = "x"'), encoding="utf-8")
+    with pytest.raises(aim.ContractError, match="core.goal"):
+        aim.load_contract(path)
+
+    path.write_text(
+        base.replace(goal_line, 'goal = "g"\n\n[core.nested]\nx = "y"'), encoding="utf-8"
+    )
+    with pytest.raises(aim.ContractError, match="core.nested"):
+        aim.load_contract(path)
+
+    path.write_text(
+        base.replace(goal_line, goal_line + "\ninvariants = [1, 2]"), encoding="utf-8"
+    )
+    with pytest.raises(aim.ContractError, match="core.invariants"):
+        aim.load_contract(path)
+
+    path.write_text(base.replace("[core]\n" + goal_line + "\n\n", "[core]\n"), encoding="utf-8")
+    with pytest.raises(aim.ContractError, match="core"):
+        aim.load_contract(path)

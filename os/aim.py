@@ -44,7 +44,7 @@ GUARD_KINDS = ("exit_zero", "unchanged_output", "non_decreasing_number", "non_in
 NUMERIC_GUARD_KINDS = ("non_decreasing_number", "non_increasing_number")
 ON_INCOMPLETE = ("stop", "continue")
 
-_CONTRACT_KEYS = {"schema", "project", "frame", "budget", "agent", "integrity", "revert", "stages"}
+_CONTRACT_KEYS = {"schema", "project", "core", "frame", "budget", "agent", "integrity", "revert", "stages"}
 _PROJECT_KEYS = {"id", "name"}
 _FRAME_KEYS = {"generation", "class", "mechanism"}
 _BUDGET_KEYS = {"iterations_total"}
@@ -105,6 +105,25 @@ def load_contract(path: Path) -> dict[str, Any]:
         raise ContractError("frame.generation must be a positive integer")
     _require_text(frame.get("class"), "frame.class")
     _require_text(frame.get("mechanism"), "frame.mechanism")
+
+    # [core] is the frame-invariant constitution: the clauses a jump may never
+    # rewrite without a human. os/jump.py grants auto approval only when the
+    # successor carries [core] canonically unchanged; changing it makes the
+    # jump constitutional and human-gated. Keys are free (the author writes
+    # their own constitution) but values must serialize deterministically.
+    # Comparison is canonical-JSON exact: 1 and 1.0 differ, which fails closed
+    # (a spurious human gate, never a silent pass).
+    if "core" in raw:
+        core = raw["core"]
+        if not isinstance(core, dict) or not core:
+            raise ContractError("core must be a non-empty table")
+        _require_text(core.get("goal"), "core.goal")
+        for key, value in core.items():
+            if isinstance(value, (str, int, float, bool)):
+                continue
+            if isinstance(value, list) and all(isinstance(item, str) for item in value):
+                continue
+            raise ContractError(f"core.{key} must be a scalar or a list of strings")
 
     budget = _require_mapping(raw.get("budget"), _BUDGET_KEYS, "budget")
     if not isinstance(budget.get("iterations_total"), int) or budget["iterations_total"] < 1:

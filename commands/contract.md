@@ -37,6 +37,16 @@ proxy for the real goal — if the number *is* the goal, say so explicitly) and
 `integrity` pins (the evaluator plus every data surface a change could quietly
 rewrite).
 
+- **Core** — the `[core]` table is the contract's constitution: at minimum
+  `core.goal`, one sentence stating what success means, in the user's words.
+  Successors that preserve the constitution — `[core]` verbatim, plus the
+  objectives' measurement fields, guards, and integrity pins — can be adopted
+  with auto approval (`/loop-os:jump`); touching any of it forces the human
+  gate. Freeze in `[core]` exactly what must survive every frame change — the
+  goal, and any clause whose loosening would let future generations declare
+  cheap victories. Sealing a contract without `[core]` is allowed but makes
+  every future jump human-gated.
+
 ### 2. Build the evaluator if none exists
 
 If no existing command prints the number, write one (e.g. `evaluate.py`) — smallest

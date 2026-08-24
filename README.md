@@ -15,7 +15,7 @@ The LLM proposes directions and interprets results, but its judgment enters the 
 - **A dumb loop climbs one number — it can't ask whether the number is worth climbing.** The OS makes every objective cite the contract clause that licenses it as a proxy (`proxy_license`); the real verdict happens outside, on data the system can't read.
 - **A dumb loop spends iterations — it can't police how many.** The OS turns budgets into multiple-testing contracts: iterations are drawn up front and never refunded, and abandoned runs still count.
 - **A dumb loop reverts bad changes — it can't remember what happened.** The OS seals every run, diagnosis, and contract into a hash-chained journal, anchored in git so history can't be quietly rewritten.
-- **A dumb loop can't change its own frame.** The OS owns jumps: a dead hypothesis class is replaced only through a reviewed, human-approved, sealed adoption.
+- **A dumb loop can't change its own frame.** The OS owns jumps: a dead hypothesis class is replaced only through a reviewed, sealed adoption. Frames that preserve the contract's `[core]` constitution adopt autonomously; touching `[core]` demands a human signature.
 - **Any loop, any problem.** The kernel and OS know nothing about the domain — any repo with a contract and an evaluator runs unchanged, whether the problem is quant research, ML tuning, or refactoring.
 
 ## Getting Started
@@ -69,7 +69,7 @@ Runs the same kernel twice on the same 12-stop routing problem — once bare, on
 
 ### 4. Jump when the frame dies
 
-A dead hypothesis class (three REJECTED diagnoses, or a spent budget) is replaced only through a **jump**: one atomic journal event citing the dossier, the successor contract, an independent review, and a human approval — exactly what the example above did at iteration 30. A jump is a human decision, so it stays a deliberate sequence of instrument calls rather than a one-word command; the full operating procedure is [SKILL.md](SKILL.md), and the design document is [docs/design.md](docs/design.md).
+A dead hypothesis class (three REJECTED diagnoses, or a spent budget) is replaced only through a **jump**: one atomic journal event citing the dossier, the successor contract, an independent review, and an approval — exactly what the example above did at iteration 30. Approval is two-tier. The contract's constitution is its `[core]` table plus everything that defines the measurement — objective fields, guards, integrity pins, the per-generation budget. An **ordinary jump** preserves all of it and comes from a closed frame (spent budget or three REJECTED diagnoses); it adopts with auto approval, so frame exploration — new class, new mechanism, new prompts — needs no human in the loop. A **constitutional jump** changes any of it, and waits for a human-authored approval: every path that could loosen what counts as success crosses the human gate. `/loop-os:jump` runs one full pass; the operating procedure is [SKILL.md](SKILL.md), and the design document is [docs/design.md](docs/design.md).
 
 ## License
 

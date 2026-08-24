@@ -153,6 +153,255 @@ def test_revoke_requires_an_active_adoption_and_a_reason(registered_project: Pat
         jump.revoke(registered_project, adopted["event_id"], "double revoke")
 
 
+def _auto_approval(tmp_path: Path) -> Path:
+    path = tmp_path / "approval.auto.json"
+    path.write_text(
+        json.dumps({"mode": "auto", "basis": "core-preserved"}), encoding="utf-8"
+    )
+    return path
+
+
+def _close_frame(project: Path, tmp_path: Path) -> None:
+    """Three REJECTED diagnoses close the class without drawing budget."""
+    for index in (1, 2, 3):
+        _cycle(project, tmp_path, index, "REJECTED")
+
+
+def test_auto_approval_adopts_when_core_is_preserved(registered_project: Path, tmp_path: Path) -> None:
+    _close_frame(registered_project, tmp_path)
+    inputs = _jump_inputs(registered_project, tmp_path)
+    # Frame exploration is free under auto: new prompt, fewer iterations.
+    successor = inputs["successor_path"]
+    successor.write_text(
+        successor.read_text(encoding="utf-8")
+        .replace("Lower the number in value.txt by exactly 1.", "Climb toward zero from above.")
+        .replace("iterations = 3", "iterations = 2"),
+        encoding="utf-8",
+    )
+    inputs["approval_path"] = _auto_approval(tmp_path)
+    result = jump.adopt(registered_project, **inputs)
+    assert result["status"] == "ADOPTED"
+    assert result["approval_mode"] == "auto"
+    events = journal.load_events(registered_project)
+    body = next(e for e in events if e["kind"] == "adoption.v1")["body"]
+    assert body["approval_mode"] == "auto"
+    assert len(body["core_digest"]) == 64
+    assert len(body["core_baseline_contract_digest"]) == 64
+
+
+def test_auto_approval_refused_while_frame_is_open(registered_project: Path, tmp_path: Path) -> None:
+    inputs = _jump_inputs(registered_project, tmp_path)
+    inputs["approval_path"] = _auto_approval(tmp_path)
+    with pytest.raises(jump.JumpError, match="not closed"):
+        jump.adopt(registered_project, **inputs)
+
+
+def test_auto_approval_refused_when_core_changes(registered_project: Path, tmp_path: Path) -> None:
+    _close_frame(registered_project, tmp_path)
+    inputs = _jump_inputs(registered_project, tmp_path)
+    successor = inputs["successor_path"]
+    successor.write_text(
+        successor.read_text(encoding="utf-8").replace(
+            'goal = "drive the number in value.txt to 0"',
+            'goal = "drive the number in value.txt below 5"',
+        ),
+        encoding="utf-8",
+    )
+    inputs["approval_path"] = _auto_approval(tmp_path)
+    with pytest.raises(jump.JumpError, match="constitutional"):
+        jump.adopt(registered_project, **inputs)
+    # The loosened frame still opens with a human signature.
+    human = tmp_path / "approval.human.json"
+    human.write_text(
+        json.dumps({"approved_by": "bbangjo", "statement": "loosen the target knowingly"}),
+        encoding="utf-8",
+    )
+    result = jump.adopt(registered_project, **{**inputs, "approval_path": human})
+    assert result["approval_mode"] == "human"
+
+
+def test_auto_approval_refused_without_a_sealed_core(registered_project: Path, tmp_path: Path) -> None:
+    _close_frame(registered_project, tmp_path)
+    contract_path = registered_project / "contract.toml"
+    text = contract_path.read_text(encoding="utf-8")
+    stripped = text.replace('[core]\ngoal = "drive the number in value.txt to 0"\n\n', "")
+    contract_path.write_text(stripped, encoding="utf-8")
+    seal_contract(registered_project)  # same generation, re-registration
+    inputs = _jump_inputs(registered_project, tmp_path)
+    inputs["approval_path"] = _auto_approval(tmp_path)
+    with pytest.raises(jump.JumpError, match=r"\[core\] section in the registered contract"):
+        jump.adopt(registered_project, **inputs)
+
+
+def test_auto_approval_refused_when_budget_is_inflated(registered_project: Path, tmp_path: Path) -> None:
+    _close_frame(registered_project, tmp_path)
+    inputs = _jump_inputs(registered_project, tmp_path)
+    successor = inputs["successor_path"]
+    successor.write_text(
+        successor.read_text(encoding="utf-8").replace(
+            "iterations_total = 6", "iterations_total = 60"
+        ),
+        encoding="utf-8",
+    )
+    inputs["approval_path"] = _auto_approval(tmp_path)
+    with pytest.raises(jump.JumpError, match="more budget"):
+        jump.adopt(registered_project, **inputs)
+
+
+def test_auto_approval_refused_when_registered_text_is_gone(registered_project: Path, tmp_path: Path) -> None:
+    _close_frame(registered_project, tmp_path)
+    inputs = _jump_inputs(registered_project, tmp_path)
+    contract_path = registered_project / "contract.toml"
+    contract_path.write_text(
+        contract_path.read_text(encoding="utf-8") + "\n# drift\n", encoding="utf-8"
+    )
+    inputs["approval_path"] = _auto_approval(tmp_path)
+    with pytest.raises(jump.JumpError, match="registered path"):
+        jump.adopt(registered_project, **inputs)
+
+
+def test_auto_approval_refused_on_unregistered_project(project: Path, tmp_path: Path) -> None:
+    journal.append_event(project, "bootstrap.v1", {"project_id": "toy", "lineage": []})
+    dossier = tmp_path / "dossier.json"
+    dossier.write_text(
+        json.dumps({"rival_draft": {"note_id": "n1"}, "current_frame": {}}), encoding="utf-8"
+    )
+    review = tmp_path / "review.json"
+    review.write_text(
+        json.dumps({"reviewer": "r", "independent": True, "verdict": "PASS"}), encoding="utf-8"
+    )
+    with pytest.raises(jump.JumpError, match="registered contract to compare"):
+        jump.adopt(
+            project,
+            dossier,
+            _successor(project, tmp_path, generation=2),
+            review,
+            _auto_approval(tmp_path),
+        )
+
+
+def test_auto_approval_refused_when_measurement_changes(registered_project: Path, tmp_path: Path) -> None:
+    _close_frame(registered_project, tmp_path)
+    inputs = _jump_inputs(registered_project, tmp_path)
+    successor = inputs["successor_path"]
+    successor.write_text(
+        successor.read_text(encoding="utf-8").replace('direction = "minimize"', 'direction = "maximize"'),
+        encoding="utf-8",
+    )
+    inputs["approval_path"] = _auto_approval(tmp_path)
+    with pytest.raises(jump.JumpError, match="measurement is constitutional"):
+        jump.adopt(registered_project, **inputs)
+
+
+def test_auto_approval_refused_when_a_guard_is_dropped(registered_project: Path, tmp_path: Path) -> None:
+    _close_frame(registered_project, tmp_path)
+    inputs = _jump_inputs(registered_project, tmp_path)
+    successor = inputs["successor_path"]
+    successor.write_text(
+        successor.read_text(encoding="utf-8").split("[[stages.guards]]")[0], encoding="utf-8"
+    )
+    inputs["approval_path"] = _auto_approval(tmp_path)
+    with pytest.raises(jump.JumpError, match="drops or weakens a guard"):
+        jump.adopt(registered_project, **inputs)
+
+
+def test_auto_approval_refused_when_integrity_pin_dropped(registered_project: Path, tmp_path: Path) -> None:
+    _close_frame(registered_project, tmp_path)
+    contract_path = registered_project / "contract.toml"
+    contract_path.write_text(
+        contract_path.read_text(encoding="utf-8").replace(
+            'schema = "ros2-contract-v1"', 'schema = "ros2-contract-v1"\nintegrity = ["app.py"]'
+        ),
+        encoding="utf-8",
+    )
+    seal_contract(registered_project)  # same generation, re-registration
+    inputs = _jump_inputs(registered_project, tmp_path)  # successor has no integrity pins
+    inputs["approval_path"] = _auto_approval(tmp_path)
+    with pytest.raises(jump.JumpError, match="integrity pin"):
+        jump.adopt(registered_project, **inputs)
+
+
+def test_auto_approval_refused_when_project_id_changes(registered_project: Path, tmp_path: Path) -> None:
+    _close_frame(registered_project, tmp_path)
+    inputs = _jump_inputs(registered_project, tmp_path)
+    successor = inputs["successor_path"]
+    successor.write_text(
+        successor.read_text(encoding="utf-8").replace('id = "toy"', 'id = "toy2"'),
+        encoding="utf-8",
+    )
+    inputs["approval_path"] = _auto_approval(tmp_path)
+    with pytest.raises(jump.JumpError, match="project.id"):
+        jump.adopt(registered_project, **inputs)
+
+
+def _extra_stage(tmp_path: Path, direction: str, with_guard: bool) -> str:
+    guard = (
+        '\n[[stages.guards]]\nid = "app-intact"\ncommand = ["python3", "-c", '
+        '"import pathlib,sys; sys.exit(0 if pathlib.Path(\'app.py\').exists() else 1)"]\n'
+        'kind = "exit_zero"\ntimeout_seconds = 30\n'
+        if with_guard
+        else ""
+    )
+    return (
+        f'\n[[stages]]\nid = "extra"\nprompt = "extra stage"\niterations = 1\n'
+        f'\n[stages.objective]\ncommand = ["python3", "{tmp_path / "objective.py"}"]\n'
+        f'direction = "{direction}"\nmargin = 1\ntarget = 0\ntimeout_seconds = 30\n'
+        f'proxy_license = "toy contract clause 1: the number itself is the goal, not a proxy."\n'
+        + guard
+    )
+
+
+def test_auto_approval_refused_when_guards_park_on_a_decoy_stage(registered_project: Path, tmp_path: Path) -> None:
+    _close_frame(registered_project, tmp_path)
+    inputs = _jump_inputs(registered_project, tmp_path)
+    successor = inputs["successor_path"]
+    # Working stage sheds its guard; a decoy stage carries it, so the union
+    # still covers the current guard set — the per-stage check must refuse.
+    text = successor.read_text(encoding="utf-8").split("[[stages.guards]]")[0]
+    successor.write_text(text + _extra_stage(tmp_path, "minimize", with_guard=True), encoding="utf-8")
+    inputs["approval_path"] = _auto_approval(tmp_path)
+    with pytest.raises(jump.JumpError, match="drops or weakens a guard"):
+        jump.adopt(registered_project, **inputs)
+
+
+def test_auto_approval_refused_when_an_objective_is_added(registered_project: Path, tmp_path: Path) -> None:
+    _close_frame(registered_project, tmp_path)
+    inputs = _jump_inputs(registered_project, tmp_path)
+    successor = inputs["successor_path"]
+    successor.write_text(
+        successor.read_text(encoding="utf-8") + _extra_stage(tmp_path, "maximize", with_guard=True),
+        encoding="utf-8",
+    )
+    inputs["approval_path"] = _auto_approval(tmp_path)
+    with pytest.raises(jump.JumpError, match="measurement is constitutional"):
+        jump.adopt(registered_project, **inputs)
+
+
+def test_auto_approval_refused_when_revert_changes(registered_project: Path, tmp_path: Path) -> None:
+    _close_frame(registered_project, tmp_path)
+    inputs = _jump_inputs(registered_project, tmp_path)
+    successor = inputs["successor_path"]
+    successor.write_text(
+        successor.read_text(encoding="utf-8").replace(
+            "[frame]", "[revert]\nclean_ignored = false\n\n[frame]"
+        ),
+        encoding="utf-8",
+    )
+    inputs["approval_path"] = _auto_approval(tmp_path)
+    with pytest.raises(jump.JumpError, match=r"changes \[revert\]"):
+        jump.adopt(registered_project, **inputs)
+
+
+def test_human_approval_records_its_mode(registered_project: Path, tmp_path: Path) -> None:
+    inputs = _jump_inputs(registered_project, tmp_path)
+    result = jump.adopt(registered_project, **inputs)
+    assert result["approval_mode"] == "human"
+    events = journal.load_events(registered_project)
+    body = next(e for e in events if e["kind"] == "adoption.v1")["body"]
+    assert body["approval_mode"] == "human"
+    assert "core_digest" not in body
+
+
 def test_generation_bump_requires_adoption(registered_project: Path, tmp_path: Path) -> None:
     successor = _successor(registered_project, tmp_path)
     with pytest.raises(SealError, match="adoption"):

@@ -14,6 +14,9 @@ schema = "ros2-contract-v1"
 [project]
 id = "toy"
 
+[core]
+goal = "drive the number in value.txt to 0"
+
 [frame]
 generation = 1
 class = "toy_descent"
