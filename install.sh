@@ -8,8 +8,10 @@
 #   2. Installs Python dependencies with uv.
 #   3. Installs the agent skill and slash commands into every harness it finds:
 #        Claude Code -> ~/.claude/skills/loop-os/SKILL.md
+#                       ~/.claude/skills/loop-os-deep-interview/SKILL.md
 #                       ~/.claude/commands/loop-os/*.md   (/loop-os:bootstrap)
 #        Codex       -> ~/.agents/skills/loop-os/SKILL.md
+#                       ~/.agents/skills/loop-os-deep-interview/SKILL.md
 #                       ~/.codex/prompts/loop-os-*.md     (/loop-os-bootstrap)
 #
 # It never touches your projects, shell profile, or PATH. There is no daemon —
@@ -47,6 +49,13 @@ install_skill() {
     installed_skill="yes"
 }
 
+install_program_skill() {
+    harness_name="$1"; skill_dir="$2"
+    mkdir -p "$skill_dir"
+    cp "$LOOP_OS_HOME/skills/deep-interview/SKILL.md" "$skill_dir/SKILL.md"
+    info "Installed program interview for $harness_name -> $skill_dir/SKILL.md"
+}
+
 # Commands ship with a __LOOP_OS_HOME__ placeholder so the agent knows where to
 # run the instruments from. $2 is a prefix applied to the installed filename —
 # Claude Code namespaces by directory, Codex by filename.
@@ -64,6 +73,7 @@ install_commands() {
 # Claude Code
 if [ -d "$HOME/.claude" ]; then
     install_skill "Claude Code" "$HOME/.claude/skills/loop-os"
+    install_program_skill "Claude Code" "$HOME/.claude/skills/loop-os-deep-interview"
     rm -f "$HOME/.claude/commands/loop-os/full-auto.md"
     install_commands "$HOME/.claude/commands/loop-os" "" "/loop-os:bootstrap"
 fi
@@ -71,6 +81,7 @@ fi
 # Codex (skills live under ~/.agents/skills, prompts under ~/.codex/prompts)
 if [ -d "$HOME/.codex" ] || [ -d "$HOME/.agents" ]; then
     install_skill "Codex" "$HOME/.agents/skills/loop-os"
+    install_program_skill "Codex" "$HOME/.agents/skills/loop-os-deep-interview"
     rm -f "$HOME/.codex/prompts/loop-os-full-auto.md"
     install_commands "$HOME/.codex/prompts" "loop-os-" "/loop-os-bootstrap"
 fi
@@ -79,6 +90,7 @@ if [ -z "$installed_skill" ]; then
     info "No agent harness found (~/.claude or ~/.codex). Skill not installed."
     info "After installing a harness, copy it yourself:"
     info "  cp $LOOP_OS_HOME/SKILL.md ~/.claude/skills/loop-os/SKILL.md"
+    info "  cp $LOOP_OS_HOME/skills/deep-interview/SKILL.md ~/.claude/skills/loop-os-deep-interview/SKILL.md"
 fi
 
 info "Verifying (OS + kernel + benchmark gate)"

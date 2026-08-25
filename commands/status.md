@@ -15,8 +15,10 @@ uv run python os/steer.py frame-health --project $P
 uv run python os/autonomy.py status --project $P
 ```
 
-If `$P/.journal/` does not exist, say the project is not bootstrapped and point at
-the bootstrap command instead of running anything else.
+If `$P/program.md` does not exist, say the project has no research program and
+point at `/loop-os:program` instead of running anything else. If the program
+exists but `$P/.journal/` does not, say the project is not bootstrapped and point
+at `/loop-os:bootstrap`.
 
 Then summarize for the user:
 
