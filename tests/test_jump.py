@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+import autonomy
 import journal
 import jump
 import note
@@ -157,6 +158,24 @@ def _auto_approval(tmp_path: Path) -> Path:
     path = tmp_path / "approval.auto.json"
     path.write_text(
         json.dumps({"mode": "auto", "basis": "core-preserved"}), encoding="utf-8"
+    )
+    return path
+
+
+def _full_auto_approval(tmp_path: Path) -> Path:
+    path = tmp_path / "approval.full-auto.json"
+    path.write_text(
+        json.dumps(
+            {
+                "mode": "full_auto",
+                "decision": "change the constitution because the current measurement is exhausted",
+                "evidence": "the dossier and three failed mechanisms support a new objective",
+                "goal_continuity": "the successor keeps the user's end outcome while changing its proxy",
+                "risk_assessment": "the new measurement may weaken comparability across generations",
+                "rollback_plan": "revoke before the first draw or open a corrective successor afterward",
+            }
+        ),
+        encoding="utf-8",
     )
     return path
 
@@ -400,6 +419,56 @@ def test_human_approval_records_its_mode(registered_project: Path, tmp_path: Pat
     body = next(e for e in events if e["kind"] == "adoption.v1")["body"]
     assert body["approval_mode"] == "human"
     assert "core_digest" not in body
+
+
+def test_full_auto_grant_can_authorize_constitutional_jump_from_open_frame(
+    registered_project: Path, tmp_path: Path
+) -> None:
+    autonomy.enable(
+        registered_project,
+        "user invoking full-auto",
+        "delegate constitutional decisions to the agent",
+    )
+    inputs = _jump_inputs(registered_project, tmp_path)
+    successor = inputs["successor_path"]
+    successor.write_text(
+        successor.read_text(encoding="utf-8")
+        .replace(
+            'goal = "drive the number in value.txt to 0"',
+            'goal = "drive the number in value.txt below 5"',
+        )
+        .replace("iterations_total = 6", "iterations_total = 60"),
+        encoding="utf-8",
+    )
+    inputs["approval_path"] = _full_auto_approval(tmp_path)
+
+    result = jump.adopt(registered_project, **inputs)
+
+    assert result["approval_mode"] == "full_auto"
+    body = journal.load_events(registered_project)[-1]["body"]
+    assert body["approval_mode"] == "full_auto"
+    assert len(body["full_auto_grant_digest"]) == 64
+
+
+def test_full_auto_jump_refused_without_project_grant(
+    registered_project: Path, tmp_path: Path
+) -> None:
+    inputs = _jump_inputs(registered_project, tmp_path)
+    inputs["approval_path"] = _full_auto_approval(tmp_path)
+    with pytest.raises(autonomy.AutonomyError, match="grant file not found"):
+        jump.adopt(registered_project, **inputs)
+
+
+def test_full_auto_approval_requires_auditable_judgment(
+    registered_project: Path, tmp_path: Path
+) -> None:
+    autonomy.enable(registered_project, "user", "delegate constitutional decisions")
+    inputs = _jump_inputs(registered_project, tmp_path)
+    inputs["approval_path"].write_text(
+        json.dumps({"mode": "full_auto", "decision": "continue"}), encoding="utf-8"
+    )
+    with pytest.raises(jump.JumpError, match="evidence"):
+        jump.adopt(registered_project, **inputs)
 
 
 def test_generation_bump_requires_adoption(registered_project: Path, tmp_path: Path) -> None:

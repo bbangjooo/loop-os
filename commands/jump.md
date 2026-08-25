@@ -29,6 +29,11 @@ you:
   the per-generation budget, or jumping from an open frame. Stop and ask the
   human for `approval.json {"approved_by": ..., "statement": ...}`. You never
   ghostwrite it.
+- **Full-auto constitutional jump** — only when `.loop-os-full-auto.json` is an
+  enabled validated grant. After the same independent PASS review, author
+  `approval.json` with `mode=full_auto` plus non-empty `decision`, `evidence`,
+  `goal_continuity`, `risk_assessment`, and `rollback_plan`; proceed without
+  waiting for a human.
 
 If the registered contract has no `[core]` section, there is no auto tier at all:
 every jump is constitutional until the human seals a constitution.
@@ -61,8 +66,9 @@ The pass:
    `{"reviewer": "<model/route>", "independent": true, "verdict": "PASS"|"FAIL",
    "notes": ...}`. On FAIL, fix the successor and re-run the review; never edit
    the verdict.
-7. **Approval.** Decide the tier as above — author the auto file, or stop for the
-   human. When in doubt, it is constitutional.
+7. **Approval.** Decide the tier as above — author the ordinary auto file, use
+   the structured full-auto decision when an enabled grant exists, or stop for
+   the human in default mode. When in doubt, it is constitutional.
 8. **Adopt.** `uv run python os/jump.py adopt --project $P --dossier D
    --successor S --review R --approval A`.
 9. **Seal.** Copy the successor's bytes over `$P/contract.toml` (identical bytes,

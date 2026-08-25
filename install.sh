@@ -12,8 +12,8 @@
 #        Codex       -> ~/.agents/skills/loop-os/SKILL.md
 #                       ~/.codex/prompts/loop-os-*.md     (/loop-os-bootstrap)
 #
-# It never touches your projects, shell profile, or PATH. There is no CLI
-# product and no daemon — the instruments in os/ are plain scripts run by path.
+# It never touches your projects, shell profile, or PATH. There is no daemon —
+# the instruments in os/ are plain scripts run by path.
 
 set -eu
 

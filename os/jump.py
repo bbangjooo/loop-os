@@ -7,7 +7,7 @@ session/model route, honest declaration), and an approval. A missing or
 mismatched file makes the event impossible to construct; that is the whole
 enforcement (design rule C: ordering is data dependency).
 
-Approval has two tiers. An ordinary jump may present approval.json
+Approval has two tiers by default. An ordinary jump may present approval.json
 {"mode": "auto", ...}; this instrument then verifies, from the files and the
 journal alone, that the successor changes the frame and nothing else:
 
@@ -27,10 +27,14 @@ journal alone, that the successor changes the frame and nothing else:
 
 Anything else — touching [core], swapping the evaluator, shedding a guard,
 inflating the budget, jumping from an open frame — is constitutional: it
-needs the human-authored approval.json {"approved_by", "statement"}, exactly
-as before. Loosening what counts as success therefore always crosses the
-human gate, while frame exploration (class/mechanism/prompt/agent changes)
-runs without one. The ledger records approval_mode either way.
+needs the human-authored approval.json {"approved_by", "statement"}.
+
+An explicitly enabled project-local full-auto grant adds a third, opt-in tier:
+approval.json {"mode":"full_auto", ...}.  It may authorize a constitutional
+jump after an independent PASS review, but it must carry the agent's decision,
+evidence, goal continuity, risk assessment, and rollback plan.  The grant and approval digests
+are sealed into the adoption event, so autonomy changes who decides, not
+whether the decision leaves evidence.  The ledger records approval_mode.
 
 Registering a contract with a higher generation is refused by os/seal.py until
 an adoption event covering that generation exists — so the ritual's order is
@@ -49,6 +53,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import autonomy
 import journal
 from aim import ContractError, load_contract
 from steer import CLASS_CLOSURE_THRESHOLD
@@ -64,6 +69,13 @@ class JumpError(RuntimeError):
 # them alongside [core].
 _OBJECTIVE_MEASUREMENT_KEYS = ("command", "direction", "margin", "target", "proxy_license")
 _GUARD_MEASUREMENT_KEYS = ("command", "kind", "tolerance", "ratchet")
+_FULL_AUTO_APPROVAL_FIELDS = (
+    "decision",
+    "evidence",
+    "goal_continuity",
+    "risk_assessment",
+    "rollback_plan",
+)
 
 
 def _objective_set(contract: dict[str, Any]) -> set[str]:
@@ -232,6 +244,16 @@ def _load_json(path: Path, label: str) -> dict[str, Any]:
     return value
 
 
+def _verify_full_auto_approval(project: Path, approval: dict[str, Any]) -> str:
+    """Validate the pre-authorized agent decision and return its grant digest."""
+    autonomy.load_grant(project, required_scope="constitutional_jump")
+    for field in _FULL_AUTO_APPROVAL_FIELDS:
+        value = approval.get(field)
+        if not isinstance(value, str) or not value.strip():
+            raise JumpError(f"full_auto approval field {field!r} must be non-empty text")
+    return digest_file(autonomy.grant_path(project))
+
+
 def adopt(
     project: Path,
     dossier_path: Path,
@@ -274,9 +296,13 @@ def adopt(
 
     approval = _load_json(approval_path, "approval")
     core_digest: str | None = None
+    grant_digest: str | None = None
     if approval.get("mode") == "auto":
         core_digest = _verify_auto_grant(project, state, successor)
         approval_mode = "auto"
+    elif approval.get("mode") == "full_auto":
+        grant_digest = _verify_full_auto_approval(project, approval)
+        approval_mode = "full_auto"
     else:
         if not str(approval.get("approved_by", "")).strip() or not str(approval.get("statement", "")).strip():
             raise JumpError("approval must carry approved_by and statement, written by the human")
@@ -294,6 +320,7 @@ def adopt(
             "review_digest": digest_file(review_path),
             "approval_digest": digest_file(approval_path),
             "approval_mode": approval_mode,
+            **({"full_auto_grant_digest": grant_digest} if grant_digest else {}),
             **(
                 {
                     "core_digest": core_digest,
@@ -377,7 +404,7 @@ def main(argv: list[str] | None = None) -> int:
             result = revoke(args.project, args.adoption, args.reason)
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
-    except (JumpError, journal.JournalError) as error:
+    except (JumpError, autonomy.AutonomyError, journal.JournalError) as error:
         print(json.dumps({"status": "REFUSED", "reason": str(error)}, ensure_ascii=False, indent=2))
         return 1
 

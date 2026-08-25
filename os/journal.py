@@ -1,8 +1,10 @@
 """The journal: the project's only canonical record.
 
 An append-only, hash-chained JSONL file at <project>/.journal/events.jsonl.
-Only instruments append to it (design rule: the agent never writes it
-directly). Each line carries `prev`, the sha256 of the previous raw line, so
+Only instruments write it (design rule: the agent never writes it directly).
+Normal operation is append-only; opt-in `os/autonomy.py recover` first archives
+damaged bytes and then reconstructs the readable records as an explicit new
+trust boundary. Each line carries `prev`, the sha256 of the previous raw line, so
 any edit to sealed history breaks the chain and `verify` reports it. The
 workflow holds no other state: what exists in this file *is* where we are.
 
@@ -41,6 +43,8 @@ EVENT_KINDS = (
     "claim_sealed.v1",
     "adoption.v1",
     "adoption_revoked.v1",
+    "autonomy_changed.v1",
+    "journal_recovered.v1",
 )
 
 

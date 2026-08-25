@@ -47,4 +47,5 @@ diagnoses, say so — the next move is a jump. Run it yourself, as its own pass
 (`/loop-os:jump`), right after reporting: an ordinary jump (the successor keeps the
 constitution unchanged) needs no human trigger and no human approval. Only a
 constitutional jump — one that must touch `[core]`, the measurement, or the budget
-— stops and waits for the human.
+— stops and waits for the human in default mode. With an enabled full-auto grant,
+write the structured agent approval and continue without waiting.

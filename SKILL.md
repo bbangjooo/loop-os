@@ -29,6 +29,11 @@ description: Loop OS의 outer loop 프로그램. agent(Claude Code/Codex)가 계
    그럼에도 계기 밖에서 평가했다면 SUMMARY 줄에 `offline_evals=N`으로 선언". 선언이
    발견되면 `os/seal.py run --declared-evals N`으로 봉인한다 — 선언은 분모를 올릴 수만
    있다. (근거: bench 첫 LLM run에서 실증된 분모 우회, bench/README.md findings.)
+8. 기본 모드는 사람 헌법 게이트와 journal 손상 중단을 유지한다. 사용자가 명시적으로
+   full-auto 명령을 호출해 `.loop-os-full-auto.json` grant를 만든 프로젝트만 예외다.
+   이 모드에서도 판단을 생략하지 않는다: constitutional jump는 구조화된 full_auto
+   approval + 독립 리뷰, journal 손상은 구조화된 recovery decision + 원본 archive를
+   남긴다. 자율성은 결정자를 바꿀 뿐 증거를 없애지 않는다.
 
 ## 사이클
 
@@ -37,7 +42,7 @@ description: Loop OS의 outer loop 프로그램. agent(Claude Code/Codex)가 계
 ```
 0. (최초 1회) uv run python os/journal.py bootstrap --project $P --project-id ID [--lineage name=digest ...]
    계약 저작 → uv run python os/seal.py contract --project $P --contract $P/<계약경로>
-1. uv run python os/journal.py verify --project $P    # chain + anchor 검증. 깨졌으면 즉시 사용자에게 보고
+1. uv run python os/journal.py verify --project $P    # 기본: 깨지면 사용자 보고. full-auto: 아래 복구 절차
 2. uv run python os/journal.py status --project $P    # next_required가 다음 행동을 지시한다
 3. uv run python os/aim.py --project $P --contract <계약>   # spec 방출. 거부 코드별 대응은 아래 표
 4. spec을 git commit                                  # kernel은 untracked in-worktree spec을 거부
@@ -65,6 +70,60 @@ description: Loop OS의 outer loop 프로그램. agent(Claude Code/Codex)가 계
 | R3_PENDING_RUN | 미봉인 run 존재 | run을 실행·봉인하거나, 실행 불능이면 `os/seal.py abandon` (예산은 소각) |
 | R4_PENDING_DIAGNOSIS | 진단 미봉인 | 진단 저작 → 봉인 |
 | R5_BUDGET | generation 예산 소진 | 우회 금지. residual → jump 경로 검토 |
+
+## full-auto mode
+
+사용자가 `/loop-os:full-auto`(Codex: `/loop-os-full-auto`)를 명시적으로 호출했을 때만
+활성화한다. 먼저 다음 grant를 기록한다:
+
+```
+uv run python os/autonomy.py enable --project $P \
+  --approved-by "user invoking loop-os full-auto" \
+  --statement "delegate constitutional jumps, journal recovery, and continuous goal execution to the agent"
+```
+
+journal이 건강하면 즉시 `os/journal.py anchor --project $P`를 실행하고
+`.loop-os-full-auto.json`과 `.journal-anchor.json`을 첫 aim 전에 commit한다. enable이
+`PENDING_RECOVERY`를 반환하면 먼저 복구하고 같은 commit을 만든다. kernel은 깨끗한
+tracked worktree를 요구한다.
+
+그 뒤에는 한 cycle·한 generation이 끝났다는 이유로 멈추지 않는다. contract target이
+충족되고 guards 통과, pending run/diagnosis 0, journal verify, 최종 anchor까지 확인될 때만
+목표 완료다. ordinary jump는 기존 auto 승인을 쓴다. constitutional jump는 사람을
+기다리지 않고 독립 PASS 리뷰 뒤 다음 형식의 approval을 저작한다:
+
+```json
+{
+  "mode": "full_auto",
+  "decision": "헌법 변경이 최종 목표에 필요한 이유",
+  "evidence": "dossier·실패·측정·리뷰 근거",
+  "goal_continuity": "successor가 사용자의 최초 최종 결과를 계속 섬기는 이유",
+  "risk_assessment": "성공 기준·예산·비교 가능성 위험",
+  "rollback_plan": "첫 draw 전 revoke 또는 이후 corrective successor"
+}
+```
+
+journal verify/anchor가 실패하면 원본을 직접 고치거나 삭제하지 않는다. 손상·anchor·git
+역사·contract·ledger를 조사하고 아래 recovery decision을 파일로 저작한 뒤 계기를 쓴다:
+
+```json
+{
+  "verdict": "RECOVER_AND_CONTINUE",
+  "damage_assessment": "손상과 읽을 수 있는 범위",
+  "evidence_considered": "조사한 증거",
+  "continuation_rationale": "선택한 복구가 최선인 이유",
+  "accepted_uncertainty": "복원하거나 독립 증명할 수 없는 것"
+}
+```
+
+```
+uv run python os/autonomy.py recover --project $P --decision <recovery.json> [--project-id ID]
+```
+
+계기는 원본 journal/anchor/grant/decision을 `.journal/recovery/`에 보존하고, 읽을 수 있는
+현재 event들을 canonical chain으로 재연결하고, `journal_recovered.v1`을 append한 뒤 새
+anchor를 쓴다. 복구 후 `status.next_required`에서 즉시 재개한다. grant rollback은
+`os/autonomy.py disable --project $P --reason "..."`이다.
 
 ## 진단 파일 형식
 
@@ -96,7 +155,8 @@ OS 밖에서 1회 일어나며, 여기의 verdict는 run 단위 가설 판정일
 
 class가 닫히거나(REJECTED 3회) 예산이 종착이면 — 사람을 기다리지 말고 네가 스스로
 이 절차를 실행한다 (`/loop-os:jump`가 한 번의 pass). ordinary jump는 트리거부터
-승인까지 인간 개입 0이다; constitutional jump에서만 멈추고 사람을 부른다:
+승인까지 인간 개입 0이다. 기본 모드는 constitutional jump에서 사람을 부르지만,
+full-auto grant가 있으면 agent가 구조화된 승인을 저작한다:
 
 ```
 1. uv run python os/steer.py residual --project $P     # 닫힌 class의 기각 mechanism 목록 + 과제
@@ -117,14 +177,16 @@ class가 닫히거나(REJECTED 3회) 예산이 종착이면 — 사람을 기다
      모든 run 봉인/포기 + 진단 완료). 하나라도 어긋나면 auto는 거부된다.
    · constitutional jump (위 조건 밖 전부 — [core]·측정·guard 변경, 예산 인상,
      열린 frame에서의 jump): approval.json {"approved_by": ..., "statement": ...}
-     — 사람이 쓴다. 네가 대필하지 않는다.
+     — 기본 모드에서는 사람이 쓴다. full-auto mode에서는 위 `mode=full_auto` 형식을
+     agent가 직접 쓰며 grant digest와 approval digest가 adoption에 함께 봉인된다.
 7. uv run python os/jump.py adopt --project $P --dossier D --successor S --review R --approval A
 8. os/seal.py contract로 successor 등록 → os/aim.py (새 generation 예산)
 ```
 
 `[core]`는 contract의 헌법이다 — goal 등 저자가 bootstrap에서 동결한 절. evaluator는
 stages에 살지만 측정 필드는 헌법의 일부로 함께 동결된다 — 성공기준을 느슨하게
-만드는 모든 경로(goal 문구, 측정 교체, guard 삭제)가 사람 게이트를 지난다. 등록된
+만드는 모든 경로(goal 문구, 측정 교체, guard 삭제)가 기본 모드에서는 사람 게이트를
+지나고, full-auto에서는 명시 grant + 독립 리뷰 + agent 판단 파일을 지난다. 등록된
 contract에 [core]가 없으면 auto 단계 자체가 없다 — 모든 jump가 constitutional이다.
 successor는 등록 contract와 **다른 경로**에 저작하라 — 등록된 텍스트가 제자리에
 없으면 auto는 기준선을 세울 수 없어 거부된다. 채택 후 successor를 contract.toml로
