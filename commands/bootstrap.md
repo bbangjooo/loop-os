@@ -4,9 +4,10 @@ description: Bootstrap the current repository as a Loop OS application — creat
 
 Bootstrap the repository you are currently in as a Loop OS application.
 
-If the user passed anything after the command, treat it as the plain-language
-problem statement — what they want to get better — and carry it into step 4 so the
-contract builder starts from it instead of asking again.
+`program.md` is the durable research plan for this project. It must exist before
+the first Loop OS contract. If it does not exist, stop and run `/loop-os:program`
+first. A plain-language problem statement passed to this command is useful
+context for that interview, not a substitute for the program artifact.
 
 Loop OS lives at `__LOOP_OS_HOME__`; every instrument is run by path from there
 (`uv run python os/<instrument>.py`). Let `$P` be the absolute path of the current
@@ -14,11 +15,16 @@ project. Never write `.journal/` or a `spec.yaml` by hand — instruments own bo
 
 Do this in order, stopping at the first thing you cannot determine on your own:
 
-1. **Check the ground.** Confirm `$P` is a git repository with a clean-enough
+1. **Check the program.** Read `$P/program.md`. If it is missing, stop and run
+   `/loop-os:program` before bootstrapping. Confirm that it states the goal,
+   search space/interventions, success evidence, falsifiers, constraints,
+   non-goals, and human decision boundary.
+
+2. **Check the ground.** Confirm `$P` is a git repository with a clean-enough
    working tree. If `$P/.journal/` already exists, the project is bootstrapped — run
    `uv run python os/journal.py status --project $P`, report `next_required`, stop.
 
-2. **Offer a per-frame worktree.** The kernel commits and reverts inside the working
+3. **Offer a per-frame worktree.** The kernel commits and reverts inside the working
    tree, so two frames sharing one checkout collide. If the user will run more than
    one frame, or wants the climb off their working branch, create a worktree and
    make it `$P` for every step below:
@@ -28,20 +34,19 @@ Do this in order, stopping at the first thing you cannot determine on your own:
    Use an orphan branch only when the frame should not inherit history. Single-frame
    project: skip this step.
 
-3. **Create the journal.**
+4. **Create the journal.**
    ```
    uv run python os/journal.py bootstrap --project $P --project-id <id>
    ```
 
-4. **Build and seal the contract** by following
+5. **Build and seal the contract** by following
    `__LOOP_OS_HOME__/commands/contract.md` — the contract-builder command, also
-   available directly as its own slash command. Hand it the problem statement from
-   the command argument if one was given. It interviews the user from that
-   statement, builds the evaluator if none exists, drafts `contract.toml`, has the
-   draft independently reviewed against a defect checklist, and seals it. Do not
-   seal an unreviewed contract.
+   available directly as its own slash command. It reads `program.md`, derives the
+   first executable frame, builds the evaluator if none exists, drafts
+   `contract.toml`, has the draft independently reviewed against a defect
+   checklist, and seals it. Do not seal an unreviewed contract.
 
-5. **Verify and report.** Run `uv run python os/journal.py status --project $P` and
+6. **Verify and report.** Run `uv run python os/journal.py status --project $P` and
    tell the user the sealed contract digest, the objective's current value, the
    drawn budget, and the exact next command in the cycle. If a guard fails or the
    objective command does not print a number, say so plainly and stop — a contract

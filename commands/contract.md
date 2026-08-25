@@ -1,10 +1,11 @@
 ---
-description: Build a Loop OS contract from a plain-language problem statement — interview, evaluator, draft, review, seal.
+description: Build a Loop OS contract from program.md — evaluator, draft, review, seal.
 ---
 
-Build `contract.toml` for the current project from the user's problem statement.
-If they gave one as an argument, start from it; otherwise ask for it first — one
-sentence about what they want to get better is enough to begin.
+Build the first executable `contract.toml` for the current project from its
+`program.md`. The program is the durable research plan; the contract is one
+current execution frame. If `program.md` is missing, stop and run
+`/loop-os:program` first.
 
 Loop OS lives at `__LOOP_OS_HOME__`; instruments run by path from there. Let `$P`
 be the absolute path of the current project. A complete sealed contract to model on
@@ -14,10 +15,10 @@ If `$P/.journal/` does not exist, say so and offer to run the bootstrap command
 first — a contract can be drafted without a journal, but it cannot be sealed into
 one that doesn't exist.
 
-### 1. Translate the problem into the four contract questions
+### 1. Translate the program into the four contract questions
 
-Read the repo (README, tests, existing metrics scripts), then resolve — inferring
-what you can, asking the rest **in one batch**:
+Read `program.md`, the repo (README, tests, existing metrics scripts), then
+resolve — inferring what you can, asking the rest **in one batch**:
 
 - **Objective** — one command that prints the quality of the current state as a
   single number on its last line. Which direction is better, and what target and
@@ -31,6 +32,11 @@ what you can, asking the rest **in one batch**:
 - **Budget** — how many iterations may this generation spend, drawn up front and
   never refunded? Make the user pick a number they can defend, not a comfortable
   default.
+
+The program remains stable across generations. The first contract chooses one
+initial frame from its research question and initial frame hints. Later frames
+are successor contracts adopted through `/loop-os:jump`; do not rewrite the
+program merely to make a frame pass.
 
 Also settle: `proxy_license` (which of the user's own words license the number as a
 proxy for the real goal — if the number *is* the goal, say so explicitly) and
@@ -55,7 +61,8 @@ thing that measures honestly, reading only committed project state. It goes into
 
 ### 3. Draft `$P/contract.toml`
 
-Follow the README schema. Every guard must pass on the current commit — run them.
+Follow the README schema. Include `program.md` in `integrity`. Every guard must
+pass on the current commit — run them.
 
 ### 4. Review before sealing — do not skip
 
@@ -68,7 +75,9 @@ commands, and ask for a **defect list**, not an opinion:
 - `proxy_license` names a real licensing clause rather than restating the objective.
 - Mechanism is falsifiable — name the observation that would refute it.
 - Guards all pass now, and at least one fails under obvious gaming.
-- Integrity pins cover the evaluator and every quietly-rewritable data surface.
+- **Integrity** pins cover the evaluator and every quietly-rewritable data surface.
+- `program.md` is included in the integrity pins so a running frame cannot
+  silently change the research plan.
 - Budget is defensible as a multiple-testing contract.
 
 Fix findings; re-review if the contract changed materially. Report unresolved

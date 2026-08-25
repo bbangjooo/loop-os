@@ -28,9 +28,31 @@ curl -fsSL https://raw.githubusercontent.com/bbangjooo/loop-os/main/install.sh |
 
 This clones the repo into `~/loop-os`, installs dependencies with [uv](https://docs.astral.sh/uv/), installs the agent skill and slash commands into every harness it finds, and runs the test gate. Requirements: Python ≥ 3.11, git, uv, and an agent harness as the outer-loop runtime.
 
-The examples below are Claude Code. Codex gets the same commands under flat names — `/loop-os-run-example`, `/loop-os-bootstrap`, `/loop-os-contract`, `/loop-os-cycle`, `/loop-os-status`.
+The examples below are Claude Code. Codex gets the same commands under flat names — `/loop-os-program`, `/loop-os-run-example`, `/loop-os-bootstrap`, `/loop-os-contract`, `/loop-os-cycle`, `/loop-os-status`.
 
-The installer adds five slash commands to Claude Code. Run them from inside the project you want to work on.
+The installer adds the Loop OS skill and slash commands to Claude Code or Codex. Run them from inside the project you want to work on.
+
+### 0. Define the program
+
+Before bootstrapping a project, run the bundled standalone deep interview:
+
+```
+/loop-os:program   # or: /loop-os:program <problem or research idea>
+```
+
+It works without GJC and writes a single `program.md` at the project root. The
+program is the durable research plan: goal, research question, allowed
+interventions, success evidence, falsifiers, constraints, non-goals, and the
+human decision boundary. It does not edit application code or start execution.
+
+The next step is:
+
+```
+/loop-os:bootstrap
+```
+
+`contract.toml` is derived from `program.md` and represents only the current
+execution frame. The program remains stable while `jump` replaces frames.
 
 ### 1. See it work
 
@@ -50,12 +72,13 @@ Runs the same kernel twice on the same 12-stop routing problem — once bare, on
 ### 2. Bootstrap your own project
 
 ```
-/loop-os:bootstrap   the test suite takes 40 minutes; I want it under 10 without losing coverage
+/loop-os:program   the test suite takes 40 minutes; I want it under 10 without losing coverage
+/loop-os:bootstrap
 ```
 
 - Your project is any git repository. Loop OS adds a **contract** (what to optimize, under which guards, with how much budget) and a **journal** (`.journal/` — hash-chained, gitignored, written only by instruments).
 - Offers a per-frame git worktree when you'll run more than one frame — the kernel commits and reverts in the working tree, so frames sharing a checkout collide.
-- Creates the journal, then feeds your problem statement to the **contract builder** (`/loop-os:contract`, also standalone): it turns the statement into the four contract questions — objective, falsifiable mechanism, guards, budget — writes the evaluator if no command prints the number yet, and has the draft independently reviewed against a defect checklist before sealing. The contract is the one artifact nothing else in the system re-checks, so the review happens before the seal, not after.
+- Creates the journal, then feeds `program.md` to the **contract builder** (`/loop-os:contract`, also standalone): it turns the research plan into the four contract questions — objective, falsifiable mechanism, guards, budget — writes the evaluator if no command prints the number yet, and has the draft independently reviewed against a defect checklist before sealing. The contract is the one artifact nothing else in the system re-checks, so the review happens before the seal, not after.
 - What comes out looks like the example's [gen1.toml](examples/delivery-round/contracts/gen1.toml).
 
 ### 3. Run cycles
@@ -87,3 +110,13 @@ Disable the policy with `os/autonomy.py disable` to return to governed mode. See
 ## License
 
 MIT
+
+## Attribution
+
+The bundled `skills/deep-interview/SKILL.md` is an adapted, standalone port of
+GJC's `deep-interview` workflow from the Gajae Code project.
+
+- Source: https://github.com/Yeachan-Heo/gajae-code
+- Source revision: `0b2e1a15080b5d297a005c8e68b99e86ef7c9188` (2026-08-25)
+- Original license: MIT
+- Original copyright: Copyright (c) 2025-2026 Yeachan-Heo and Gajae Code Contributors

@@ -11,6 +11,22 @@ description: Loop OS의 outer loop 프로그램. agent(Claude Code/Codex)가 계
 계기는 Loop OS repo 루트(`~/loop-os`)에서 경로로 실행한다: `uv run python os/<계기>.py`.
 `os/`는 python 패키지가 아니다 — 항상 스크립트 경로로 실행한다.
 
+## Program first
+
+Loop OS 대상 프로젝트는 첫 contract 전에 루트에 `program.md`를 가져야 한다.
+`program.md`는 GJC deep-interview에서 forked/adapted된 standalone program interview가
+작성하는 장기 연구 계획이다. GJC가 설치되어 있지 않아도 `/loop-os:program`으로
+작성할 수 있다.
+
+```
+/loop-os:program → program.md → /loop-os:bootstrap → contract.toml → cycle
+```
+
+Program은 목표·연구 질문·허용 조작·성공 증거·falsifier·제약·비목표·사람에게
+돌려줄 경계를 담는다. 실행 상태를 담지 않으며, contract가 현재 generation의
+실행 frame을 소유한다. Program을 만들거나 정제하는 interview는 product code,
+contract, journal, kernel을 수정하지 않는다.
+
 ## 절대 규칙
 
 1. `.journal/events.jsonl`을 직접 쓰지 않는다. 계기만 append한다. (수정하면 hash
@@ -40,7 +56,9 @@ description: Loop OS의 outer loop 프로그램. agent(Claude Code/Codex)가 계
 프로젝트 루트를 `$P`라 하자.
 
 ```
-0. (최초 1회) uv run python os/journal.py bootstrap --project $P --project-id ID [--lineage name=digest ...]
+0. (최초 1회) `/loop-os:program` → `$P/program.md` 작성
+   `program.md`를 검토·commit한 뒤:
+   uv run python os/journal.py bootstrap --project $P --project-id ID [--lineage name=digest ...]
    계약 저작 → uv run python os/seal.py contract --project $P --contract $P/<계약경로>
 0.5. uv run python os/autonomy.py status --project $P  # config-driven autonomy mode 확인
 1. uv run python os/journal.py verify --project $P    # 기본: 깨지면 사용자 보고. full-auto: 아래 복구 절차
