@@ -1,9 +1,10 @@
 ---
-description: Run Loop OS continuously to the contract goal, including agent-decided constitutional jumps and journal recovery.
+description: Run Loop OS continuously toward the external goal, including agent-decided constitutional jumps and journal recovery.
 ---
 
-Operate the current project in **full-auto mode** until its contract goal is
-achieved and verified. This command invocation is the user's explicit delegation
+Operate the current project in **full-auto mode** toward the task's explicit
+external goal. A contract target and its guards define a generation checkpoint,
+not the external goal. This command invocation is the user's explicit delegation
 of constitutional-jump and journal-recovery decisions to the agent. Do not stop
 at cycle or generation boundaries and do not wait for another human approval.
 
@@ -46,8 +47,17 @@ Repeat this program without returning control merely because a pass completed:
    adopt it. Do not ask the user to approve it.
 5. Register the successor, start its generation, and continue from step 1.
 6. After every accepted change and generation transition, run the contract's
-   objective and guards. Finish only when the target is met, all guards pass, no
-   run or diagnosis is pending, the journal verifies, and the final head is anchored.
+   objective and guards. A passing target closes or promotes that generation's
+   candidate only. Continue unless the separately stated external goal has its
+   own deterministic completion evidence and the task identifies this project as
+   authorized to verify it. Finish only when that external evidence passes, no run
+   or diagnosis is pending, the journal verifies, and the final head is anchored.
+
+Never create, replace, or complete the active goal from gate count,
+`gates-failing=0`, a metric deficit, trial count, budget exhaustion, or one
+generation's terminal state. If completion depends on evidence owned by a center
+coordinator or another project, keep this lane active until that owner or the user
+stops it.
 
 Recovery decision JSON:
 

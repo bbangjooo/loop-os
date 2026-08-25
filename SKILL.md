@@ -87,9 +87,14 @@ journal이 건강하면 즉시 `os/journal.py anchor --project $P`를 실행하�
 `PENDING_RECOVERY`를 반환하면 먼저 복구하고 같은 commit을 만든다. kernel은 깨끗한
 tracked worktree를 요구한다.
 
-그 뒤에는 한 cycle·한 generation이 끝났다는 이유로 멈추지 않는다. contract target이
-충족되고 guards 통과, pending run/diagnosis 0, journal verify, 최종 anchor까지 확인될 때만
-목표 완료다. ordinary jump는 기존 auto 승인을 쓴다. constitutional jump는 사람을
+그 뒤에는 한 cycle·한 generation이 끝났다는 이유로 멈추지 않는다. contract target과
+guards 통과는 해당 generation의 candidate checkpoint일 뿐 외부 active goal 완료가
+아니다. gate 수, `gates-failing=0`, metric deficit, trial 수, 예산 소진, generation
+terminal을 active goal로 만들거나 그 완료 근거로 쓰지 않는다. 별도로 명시된 외부
+goal의 결정론 완료 증거가 통과하고 이 project가 그 goal의 판정 owner일 때에만,
+pending run/diagnosis 0, journal verify, 최종 anchor를 확인한 뒤 목표를 완료한다. 중앙
+coordinator가 증거를 소유하면 lane은 coordinator나 사용자가 멈출 때까지 계속한다.
+ordinary jump는 기존 auto 승인을 쓴다. constitutional jump는 사람을
 기다리지 않고 독립 PASS 리뷰 뒤 다음 형식의 approval을 저작한다:
 
 ```json
