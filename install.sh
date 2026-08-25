@@ -64,12 +64,14 @@ install_commands() {
 # Claude Code
 if [ -d "$HOME/.claude" ]; then
     install_skill "Claude Code" "$HOME/.claude/skills/loop-os"
+    rm -f "$HOME/.claude/commands/loop-os/full-auto.md"
     install_commands "$HOME/.claude/commands/loop-os" "" "/loop-os:bootstrap"
 fi
 
 # Codex (skills live under ~/.agents/skills, prompts under ~/.codex/prompts)
 if [ -d "$HOME/.codex" ] || [ -d "$HOME/.agents" ]; then
     install_skill "Codex" "$HOME/.agents/skills/loop-os"
+    rm -f "$HOME/.codex/prompts/loop-os-full-auto.md"
     install_commands "$HOME/.codex/prompts" "loop-os-" "/loop-os-bootstrap"
 fi
 

@@ -29,10 +29,10 @@ Anything else — touching [core], swapping the evaluator, shedding a guard,
 inflating the budget, jumping from an open frame — is constitutional: it
 needs the human-authored approval.json {"approved_by", "statement"}.
 
-An explicitly enabled project-local full-auto grant adds a third, opt-in tier:
+An explicitly enabled project-local `.loop-os/config.toml` adds a third, opt-in tier:
 approval.json {"mode":"full_auto", ...}.  It may authorize a constitutional
 jump after an independent PASS review, but it must carry the agent's decision,
-evidence, goal continuity, risk assessment, and rollback plan.  The grant and approval digests
+evidence, goal continuity, risk assessment, and rollback plan.  The config and approval digests
 are sealed into the adoption event, so autonomy changes who decides, not
 whether the decision leaves evidence.  The ledger records approval_mode.
 
@@ -245,7 +245,7 @@ def _load_json(path: Path, label: str) -> dict[str, Any]:
 
 
 def _verify_full_auto_approval(project: Path, approval: dict[str, Any]) -> str:
-    """Validate the pre-authorized agent decision and return its grant digest."""
+    """Validate the pre-authorized agent decision and return its config digest."""
     autonomy.load_grant(project, required_scope="constitutional_jump")
     for field in _FULL_AUTO_APPROVAL_FIELDS:
         value = approval.get(field)
@@ -320,7 +320,14 @@ def adopt(
             "review_digest": digest_file(review_path),
             "approval_digest": digest_file(approval_path),
             "approval_mode": approval_mode,
-            **({"full_auto_grant_digest": grant_digest} if grant_digest else {}),
+            **(
+                {
+                    "full_auto_config_digest": grant_digest,
+                    "full_auto_grant_digest": grant_digest,
+                }
+                if grant_digest
+                else {}
+            ),
             **(
                 {
                     "core_digest": core_digest,

@@ -15,7 +15,7 @@ The LLM proposes directions and interprets results, but its judgment enters the 
 - **A dumb loop climbs one number — it can't ask whether the number is worth climbing.** The OS makes every objective cite the contract clause that licenses it as a proxy (`proxy_license`); the real verdict happens outside, on data the system can't read.
 - **A dumb loop spends iterations — it can't police how many.** The OS turns budgets into multiple-testing contracts: iterations are drawn up front and never refunded, and abandoned runs still count.
 - **A dumb loop reverts bad changes — it can't remember what happened.** The OS seals every run, diagnosis, and contract into a hash-chained journal, anchored in git so history can't be quietly rewritten.
-- **A dumb loop can't change its own frame.** The OS owns jumps: a dead hypothesis class is replaced only through a reviewed, sealed adoption. Frames that preserve the contract's `[core]` constitution adopt autonomously; constitutional changes use a human signature by default or an explicit project-local full-auto grant.
+- **A dumb loop can't change its own frame.** The OS owns jumps: a dead hypothesis class is replaced only through a reviewed, sealed adoption. Frames that preserve the contract's `[core]` constitution adopt autonomously; constitutional changes use a human signature by default or an explicit project-local full-auto config.
 - **Any loop, any problem.** The kernel and OS know nothing about the domain — any repo with a contract and an evaluator runs unchanged, whether the problem is quant research, ML tuning, or refactoring.
 
 ## Getting Started
@@ -28,9 +28,9 @@ curl -fsSL https://raw.githubusercontent.com/bbangjooo/loop-os/main/install.sh |
 
 This clones the repo into `~/loop-os`, installs dependencies with [uv](https://docs.astral.sh/uv/), installs the agent skill and slash commands into every harness it finds, and runs the test gate. Requirements: Python ≥ 3.11, git, uv, and an agent harness as the outer-loop runtime.
 
-The examples below are Claude Code. Codex gets the same commands under flat names — `/loop-os-run-example`, `/loop-os-bootstrap`, `/loop-os-contract`, `/loop-os-cycle`, `/loop-os-status`, `/loop-os-full-auto`.
+The examples below are Claude Code. Codex gets the same commands under flat names — `/loop-os-run-example`, `/loop-os-bootstrap`, `/loop-os-contract`, `/loop-os-cycle`, `/loop-os-status`.
 
-The installer adds six slash commands to Claude Code. Run them from inside the project you want to work on.
+The installer adds five slash commands to Claude Code. Run them from inside the project you want to work on.
 
 ### 1. See it work
 
@@ -69,17 +69,19 @@ Runs the same kernel twice on the same 12-stop routing problem — once bare, on
 
 ### 4. Jump when the frame dies
 
-A dead hypothesis class (three REJECTED diagnoses, or a spent budget) is replaced only through a **jump**: one atomic journal event citing the dossier, the successor contract, an independent review, and an approval — exactly what the example above did at iteration 30. The contract's constitution is its `[core]` table plus everything that defines the measurement — objective fields, guards, integrity pins, the per-generation budget. An **ordinary jump** preserves all of it and comes from a closed frame (spent budget or three REJECTED diagnoses); it adopts with auto approval, so frame exploration — new class, new mechanism, new prompts — needs no human in the loop. A **constitutional jump** changes one of those surfaces. Default mode waits for a human-authored approval; explicitly enabled full-auto mode seals the agent's structured decision and grant digest instead. `/loop-os:jump` runs one full pass; the operating procedure is [SKILL.md](SKILL.md), and the design document is [docs/design.md](docs/design.md).
+A dead hypothesis class (three REJECTED diagnoses, or a spent budget) is replaced only through a **jump**: one atomic journal event citing the dossier, the successor contract, an independent review, and an approval — exactly what the example above did at iteration 30. The contract's constitution is its `[core]` table plus everything that defines the measurement — objective fields, guards, integrity pins, the per-generation budget. An **ordinary jump** preserves all of it and comes from a closed frame (spent budget or three REJECTED diagnoses); it adopts with auto approval, so frame exploration — new class, new mechanism, new prompts — needs no human in the loop. A **constitutional jump** changes one of those surfaces. Default mode waits for a human-authored approval; explicitly enabled full-auto mode seals the agent's structured decision and config digest instead. `/loop-os:jump` runs one full pass; the operating procedure is [SKILL.md](SKILL.md), and the design document is [docs/design.md](docs/design.md).
 
 ### 5. Run to the goal without approval stalls
 
-Start Codex Goal mode and invoke `/loop-os-full-auto` (Claude Code:
-`/loop-os:full-auto`) when you want to delegate constitutional decisions and
-journal recovery as well as ordinary frame exploration. The command records a
-project-local `.loop-os-full-auto.json` grant, keeps independent jump review,
-archives damaged journal bytes before recovery, and continues across cycles and
-generations until the contract target and guards are verified. Default mode is
-unchanged; disable the grant with `os/autonomy.py disable` to return to it. See
+Inject `autonomy.mode = "full_auto"` into the tracked `.loop-os/config.toml` when
+you want to delegate constitutional decisions and journal recovery as well as
+ordinary frame exploration. There is no separate full-auto skill or command: the
+existing Loop OS skill reads the config, keeps independent jump review, archives
+damaged journal bytes before recovery, and continues across cycles and generations
+until the external goal's deterministic completion evidence passes. Default mode
+is unchanged. Start the existing `$loop-os` skill in Codex Goal mode or use the
+normal cycle command in either harness; the config changes its runtime behavior.
+Disable the policy with `os/autonomy.py disable` to return to governed mode. See
 [docs/full-auto-mode.md](docs/full-auto-mode.md) for recovery and rollback semantics.
 
 ## License

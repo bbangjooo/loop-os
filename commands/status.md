@@ -12,6 +12,7 @@ be the absolute path of the current project.
 uv run python os/journal.py verify --project $P
 uv run python os/journal.py status --project $P
 uv run python os/steer.py frame-health --project $P
+uv run python os/autonomy.py status --project $P
 ```
 
 If `$P/.journal/` does not exist, say the project is not bootstrapped and point at
@@ -28,3 +29,5 @@ Then summarize for the user:
 - **Frame health** — the three interpretation requests, quoted as questions. Do not
   answer them here; answering them is part of a cycle, and the answers must be
   recorded as notes.
+- **Autonomy** — governed or full_auto, the config source, and whether legacy JSON
+  migration is still pending.

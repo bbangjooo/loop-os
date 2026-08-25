@@ -447,6 +447,7 @@ def test_full_auto_grant_can_authorize_constitutional_jump_from_open_frame(
     assert result["approval_mode"] == "full_auto"
     body = journal.load_events(registered_project)[-1]["body"]
     assert body["approval_mode"] == "full_auto"
+    assert len(body["full_auto_config_digest"]) == 64
     assert len(body["full_auto_grant_digest"]) == 64
 
 
@@ -455,7 +456,7 @@ def test_full_auto_jump_refused_without_project_grant(
 ) -> None:
     inputs = _jump_inputs(registered_project, tmp_path)
     inputs["approval_path"] = _full_auto_approval(tmp_path)
-    with pytest.raises(autonomy.AutonomyError, match="grant file not found"):
+    with pytest.raises(autonomy.AutonomyError, match="config file not found"):
         jump.adopt(registered_project, **inputs)
 
 

@@ -2,8 +2,10 @@
 description: Run one full Loop OS jump — rival draft, dossier, successor, blind review, approval tier, adopt, seal.
 ---
 
-Run exactly **one** frame transition (jump) for the current project, then stop and
-report. Do not chain a second jump on your own.
+Read `os/autonomy.py status --project $P` first. In governed mode, run exactly one
+frame transition and report. In config-driven full-auto mode, complete the jump,
+register the successor, and return immediately to the continuous cycle; a jump is
+not a stop point.
 
 Loop OS lives at `__LOOP_OS_HOME__`; run every instrument by path from there. Let
 `$P` be the absolute path of the current project. The full operating procedure is
@@ -29,11 +31,11 @@ you:
   the per-generation budget, or jumping from an open frame. Stop and ask the
   human for `approval.json {"approved_by": ..., "statement": ...}`. You never
   ghostwrite it.
-- **Full-auto constitutional jump** — only when `.loop-os-full-auto.json` is an
+- **Full-auto constitutional jump** — only when `.loop-os/config.toml` is an
   enabled validated grant. After the same independent PASS review, author
   `approval.json` with `mode=full_auto` plus non-empty `decision`, `evidence`,
   `goal_continuity`, `risk_assessment`, and `rollback_plan`; proceed without
-  waiting for a human.
+  waiting for a human. Seal the config digest into the adoption event.
 
 If the registered contract has no `[core]` section, there is no auto tier at all:
 every jump is constitutional until the human seals a constitution.

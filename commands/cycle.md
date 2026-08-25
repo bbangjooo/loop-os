@@ -2,8 +2,10 @@
 description: Run one full Loop OS outer-loop cycle — aim, run the kernel, seal, diagnose, steer, anchor.
 ---
 
-Run exactly **one** outer-loop cycle for the current project, then stop and report.
-Do not start a second cycle on your own.
+Read `os/autonomy.py status --project $P` first. In governed mode, run exactly
+**one** outer-loop cycle, then stop and report. When `.loop-os/config.toml` enables
+full-auto, keep running cycles and jumps until the external goal's deterministic
+completion evidence passes; cycle and generation boundaries are not stop points.
 
 Loop OS lives at `__LOOP_OS_HOME__`; run every instrument by path from there. Let
 `$P` be the absolute path of the current project, and `$C` its contract file.
@@ -15,8 +17,9 @@ governs; this command only sequences one pass through it.
 The pass:
 
 1. `uv run python os/journal.py verify --project $P` — chain + anchor. If it fails,
-   stop and report to the user; a broken chain is an evidence incident, not a
-   problem to route around.
+   governed mode stops and reports the evidence incident; full-auto mode authors
+   the structured recovery decision from SKILL.md, runs `os/autonomy.py recover`,
+   and resumes from journal status.
 2. `uv run python os/journal.py status --project $P` — `next_required` tells you
    where in the cycle this project actually is. Resume there rather than assuming
    step 3.
@@ -47,5 +50,5 @@ diagnoses, say so — the next move is a jump. Run it yourself, as its own pass
 (`/loop-os:jump`), right after reporting: an ordinary jump (the successor keeps the
 constitution unchanged) needs no human trigger and no human approval. Only a
 constitutional jump — one that must touch `[core]`, the measurement, or the budget
-— stops and waits for the human in default mode. With an enabled full-auto grant,
+— stops and waits for the human in default mode. With an enabled full-auto config,
 write the structured agent approval and continue without waiting.

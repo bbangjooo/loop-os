@@ -1,23 +1,23 @@
 # Full-auto mode
 
-Full-auto is an opt-in authority profile for the agent harness. It changes who
+Full-auto is an opt-in project policy consumed by the existing Loop OS skill. It changes who
 may decide constitutional jumps and journal recovery; it does not remove the
 files, reviews, digests, budgets, guards, or anchors that make those decisions
 auditable.
 
 ## Compatibility contract
 
-- Default projects are unchanged. Without `.loop-os-full-auto.json`, ordinary
+- Default projects are unchanged. Without `.loop-os/config.toml` in full-auto mode, ordinary
   jumps retain deterministic auto approval and constitutional jumps retain the
   human gate.
-- `os/autonomy.py enable` writes the tracked grant and appends
+- `os/autonomy.py enable` writes the tracked `.loop-os/config.toml` and appends
   `autonomy_changed.v1` when the journal is healthy. Existing readers replay
   that additive event without changing their current state projection.
-- `os/jump.py` accepts `mode=full_auto` only with a valid grant, an independent
+- `os/jump.py` accepts `mode=full_auto` only with a valid config, an independent
   PASS review, and a structured agent decision. Existing human and ordinary
   auto approval files remain valid.
 - `os/autonomy.py recover` archives the original journal, anchor, decision, and
-  grant under `.journal/recovery/`, accepts the readable current event payloads
+  config under `.journal/recovery/`, accepts the readable current event payloads
   as a new trust boundary, rebuilds their chain links, appends
   `journal_recovered.v1`, and writes a new tracked anchor. Invalid records stay
   in the archive and are listed by line digest in the recovery event.
@@ -30,7 +30,25 @@ creates the missing explicit trust boundary.
 
 ## Forward and rollback paths
 
-Forward:
+The config is harness-neutral, so Codex and Claude consume the same policy:
+
+```toml
+schema = "loop-os-config-v1"
+
+[autonomy]
+mode = "full_auto"
+constitutional_jumps = "agent"
+journal_recovery = "agent"
+continue_until = "external_goal"
+independent_review = true
+
+[autonomy.grant]
+approved_by = "operator"
+statement = "delegate Loop OS autonomy to the agent"
+granted_at = "2026-08-25T00:00:00Z"
+```
+
+The equivalent instrument-managed forward path is:
 
 ```bash
 uv run python os/autonomy.py enable --project "$P" \
@@ -47,6 +65,19 @@ uv run python os/autonomy.py disable --project "$P" --reason "return to governed
 
 After rollback, old full-auto adoption and recovery events remain part of the
 evidence chain. New constitutional jumps again require human approval.
+
+## Legacy migration
+
+`.loop-os-full-auto.json` remains readable for one compatibility window. Run:
+
+```bash
+uv run python os/autonomy.py migrate --project "$P"
+```
+
+Migration writes `.loop-os/config.toml` first, verifies it, and preserves the
+legacy JSON with `enabled=false` plus migration provenance. New readers always
+prefer the TOML config; old readers therefore fail safe into governed mode.
+Migration is idempotent and rollback never rewrites prior journal evidence.
 
 ## Boundary
 

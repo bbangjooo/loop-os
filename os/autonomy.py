@@ -1,9 +1,10 @@
-"""Opt-in full-auto authority and evidence-preserving journal recovery.
+"""Config-driven autonomy policy and evidence-preserving journal recovery.
 
 Full-auto is deliberately a project-local capability, not a global default.
-The user invokes the harness command once; this instrument records that grant
-in a tracked file and, when possible, in the journal.  Other instruments trust
-only the grant file's validated shape and digest.
+The tracked `.loop-os/config.toml` is the cross-harness policy source for Codex
+and Claude.  This instrument writes and validates it; other instruments trust
+only its validated shape and digest.  The old `.loop-os-full-auto.json` grant
+remains a read-only compatibility input for one migration window.
 
 Journal recovery never deletes the damaged bytes.  It archives the original
 journal and anchor, rebuilds a canonical chain from the currently readable
@@ -15,6 +16,7 @@ Instrument surface:
     python os/autonomy.py enable  --project DIR --approved-by TEXT --statement TEXT
     python os/autonomy.py disable --project DIR --reason TEXT
     python os/autonomy.py status  --project DIR
+    python os/autonomy.py migrate --project DIR
     python os/autonomy.py recover --project DIR --decision FILE [--project-id ID]
 """
 
@@ -25,6 +27,7 @@ import datetime as _dt
 import json
 import os
 import sys
+import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -32,8 +35,11 @@ import journal
 from _canon import canonical_json, digest_bytes, digest_file
 
 
-GRANT_SCHEMA = "loop-os-full-auto-v1"
-GRANT_NAME = ".loop-os-full-auto.json"
+CONFIG_SCHEMA = "loop-os-config-v1"
+CONFIG_DIR = ".loop-os"
+CONFIG_NAME = "config.toml"
+LEGACY_GRANT_SCHEMA = "loop-os-full-auto-v1"
+LEGACY_GRANT_NAME = ".loop-os-full-auto.json"
 GRANT_SCOPES = ("constitutional_jump", "journal_recovery", "continuous_goal")
 RECOVERY_DECISION_FIELDS = (
     "damage_assessment",
@@ -44,7 +50,7 @@ RECOVERY_DECISION_FIELDS = (
 
 
 class AutonomyError(RuntimeError):
-    """A full-auto grant or recovery input is absent or invalid."""
+    """A full-auto config or recovery input is absent or invalid."""
 
 
 def _now() -> str:
@@ -55,8 +61,18 @@ def _stamp() -> str:
     return _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
+def config_path(project: Path) -> Path:
+    return project.resolve() / CONFIG_DIR / CONFIG_NAME
+
+
+def legacy_grant_path(project: Path) -> Path:
+    return project.resolve() / LEGACY_GRANT_NAME
+
+
 def grant_path(project: Path) -> Path:
-    return project.resolve() / GRANT_NAME
+    """Compatibility name for the active authority source path."""
+    configured = config_path(project)
+    return configured if configured.exists() else legacy_grant_path(project)
 
 
 def _atomic_write(path: Path, data: bytes) -> None:
@@ -87,20 +103,139 @@ def _load_object(path: Path, label: str) -> dict[str, Any]:
     return value
 
 
+def _toml_string(value: str) -> str:
+    return json.dumps(value, ensure_ascii=True)
+
+
+def _render_config(
+    *,
+    mode: str,
+    approved_by: str,
+    statement: str,
+    granted_at: str,
+    disabled_at: str | None = None,
+    disable_reason: str | None = None,
+) -> bytes:
+    full_auto = mode == "full_auto"
+    lines = [
+        f"schema = {_toml_string(CONFIG_SCHEMA)}",
+        "",
+        "[autonomy]",
+        f"mode = {_toml_string(mode)}",
+        f"constitutional_jumps = {_toml_string('agent' if full_auto else 'human')}",
+        f"journal_recovery = {_toml_string('agent' if full_auto else 'human')}",
+        f"continue_until = {_toml_string('external_goal' if full_auto else 'generation')}",
+        "independent_review = true",
+        "",
+        "[autonomy.grant]",
+        f"approved_by = {_toml_string(approved_by)}",
+        f"statement = {_toml_string(statement)}",
+        f"granted_at = {_toml_string(granted_at)}",
+    ]
+    if disabled_at is not None:
+        lines.append(f"disabled_at = {_toml_string(disabled_at)}")
+    if disable_reason is not None:
+        lines.append(f"disable_reason = {_toml_string(disable_reason)}")
+    return ("\n".join(lines) + "\n").encode("utf-8")
+
+
+def _load_config(path: Path) -> dict[str, Any]:
+    if not path.is_file():
+        raise AutonomyError(f"Loop OS config file not found: {path}")
+    try:
+        value = tomllib.loads(path.read_text(encoding="utf-8"))
+    except (tomllib.TOMLDecodeError, OSError) as error:
+        raise AutonomyError(f"Loop OS config is not valid TOML: {error}") from error
+    if value.get("schema") != CONFIG_SCHEMA:
+        raise AutonomyError(f"Loop OS config has wrong schema: {value.get('schema')!r}")
+    policy = value.get("autonomy")
+    if not isinstance(policy, dict):
+        raise AutonomyError("Loop OS config carries no [autonomy] table")
+    grant = policy.get("grant")
+    if not isinstance(grant, dict):
+        raise AutonomyError("Loop OS config carries no [autonomy.grant] table")
+    mode = policy.get("mode")
+    if mode not in ("governed", "full_auto"):
+        raise AutonomyError(f"Loop OS config autonomy.mode is invalid: {mode!r}")
+    expected = {
+        "constitutional_jumps": "agent" if mode == "full_auto" else "human",
+        "journal_recovery": "agent" if mode == "full_auto" else "human",
+        "continue_until": "external_goal" if mode == "full_auto" else "generation",
+    }
+    for key, expected_value in expected.items():
+        if policy.get(key) != expected_value:
+            raise AutonomyError(
+                f"Loop OS config {key} must be {expected_value!r} when mode={mode!r}"
+            )
+    if policy.get("independent_review") is not True:
+        raise AutonomyError("Loop OS config must keep independent_review=true")
+    approved_by = grant.get("approved_by")
+    statement = grant.get("statement")
+    granted_at = grant.get("granted_at")
+    if not isinstance(approved_by, str) or not approved_by.strip():
+        raise AutonomyError("Loop OS config grant carries no approved_by")
+    if not isinstance(statement, str) or not statement.strip():
+        raise AutonomyError("Loop OS config grant carries no statement")
+    if not isinstance(granted_at, str) or not granted_at.strip():
+        raise AutonomyError("Loop OS config grant carries no granted_at")
+    return {
+        "schema": CONFIG_SCHEMA,
+        "mode": mode,
+        "enabled": mode == "full_auto",
+        "approved_by": approved_by,
+        "statement": statement,
+        "granted_at": granted_at,
+        "scopes": list(GRANT_SCOPES) if mode == "full_auto" else [],
+        "disabled_at": grant.get("disabled_at"),
+        "disable_reason": grant.get("disable_reason"),
+        "source": "config",
+    }
+
+
+def _load_legacy_grant(path: Path) -> dict[str, Any]:
+    grant = _load_object(path, "legacy full-auto grant")
+    if grant.get("schema") != LEGACY_GRANT_SCHEMA:
+        raise AutonomyError(f"legacy full-auto grant has wrong schema: {grant.get('schema')!r}")
+    scopes = grant.get("scopes")
+    if not isinstance(scopes, list) or any(scope not in GRANT_SCOPES for scope in scopes):
+        raise AutonomyError("legacy full-auto grant carries invalid scopes")
+    return {**grant, "mode": "full_auto" if grant.get("enabled") is True else "governed", "source": "legacy"}
+
+
+def _load_policy(project: Path) -> dict[str, Any]:
+    configured = config_path(project)
+    if configured.exists():
+        return _load_config(configured)
+    legacy = legacy_grant_path(project)
+    if legacy.exists():
+        return _load_legacy_grant(legacy)
+    raise AutonomyError(f"Loop OS config file not found: {configured}")
+
+
+def _retire_legacy(project: Path, *, migrated_to: Path) -> None:
+    """Make old readers fail safe after the new config becomes authoritative."""
+    path = legacy_grant_path(project)
+    if not path.exists():
+        return
+    legacy = _load_object(path, "legacy full-auto grant")
+    retired = {
+        **legacy,
+        "enabled": False,
+        "migrated_to": str(migrated_to.relative_to(project)),
+        "migrated_at": legacy.get("migrated_at") or _now(),
+    }
+    _atomic_write(path, (json.dumps(retired, indent=2, ensure_ascii=True) + "\n").encode("utf-8"))
+
+
 def load_grant(project: Path, *, required_scope: str | None = None) -> dict[str, Any]:
-    path = grant_path(project)
-    grant = _load_object(path, "full-auto grant")
-    if grant.get("schema") != GRANT_SCHEMA:
-        raise AutonomyError(f"full-auto grant has wrong schema: {grant.get('schema')!r}")
+    grant = _load_policy(project)
     if grant.get("enabled") is not True:
         raise AutonomyError("full-auto mode is disabled")
     if not str(grant.get("approved_by", "")).strip():
-        raise AutonomyError("full-auto grant carries no approved_by")
+        raise AutonomyError("full-auto authority carries no approved_by")
     if not str(grant.get("statement", "")).strip():
-        raise AutonomyError("full-auto grant carries no statement")
-    scopes = grant.get("scopes")
-    if not isinstance(scopes, list) or any(scope not in GRANT_SCOPES for scope in scopes):
-        raise AutonomyError("full-auto grant carries invalid scopes")
+        raise AutonomyError("full-auto authority carries no statement")
+    scopes = grant.get("scopes", [])
     if required_scope is not None and required_scope not in scopes:
         raise AutonomyError(f"full-auto grant does not authorize {required_scope!r}")
     return grant
@@ -110,16 +245,18 @@ def enable(project: Path, approved_by: str, statement: str) -> dict[str, Any]:
     project = project.resolve()
     if not approved_by.strip() or not statement.strip():
         raise AutonomyError("enable requires non-empty approved_by and statement")
-    grant = {
-        "schema": GRANT_SCHEMA,
-        "enabled": True,
-        "approved_by": approved_by.strip(),
-        "statement": statement.strip(),
-        "scopes": list(GRANT_SCOPES),
-        "granted_at": _now(),
-    }
-    path = grant_path(project)
-    _atomic_write(path, (json.dumps(grant, indent=2, ensure_ascii=True) + "\n").encode("utf-8"))
+    granted_at = _now()
+    path = config_path(project)
+    _atomic_write(
+        path,
+        _render_config(
+            mode="full_auto",
+            approved_by=approved_by.strip(),
+            statement=statement.strip(),
+            granted_at=granted_at,
+        ),
+    )
+    _retire_legacy(project, migrated_to=path)
     event_id = None
     journal_status = "RECORDED"
     try:
@@ -130,20 +267,22 @@ def enable(project: Path, approved_by: str, statement: str) -> dict[str, Any]:
             "autonomy_changed.v1",
             {
                 "enabled": True,
-                "grant_path": GRANT_NAME,
-                "grant_digest": digest_file(path),
-                "approved_by": grant["approved_by"],
-                "statement": grant["statement"],
-                "scopes": grant["scopes"],
+                "config_path": str(path.relative_to(project)),
+                "config_digest": digest_file(path),
+                "approved_by": approved_by.strip(),
+                "statement": statement.strip(),
+                "scopes": list(GRANT_SCOPES),
             },
         )
         event_id = event["event_id"]
     except journal.JournalError:
         # Enabling must remain possible when the very reason for entering
-        # full-auto is a broken journal.  Recovery will cite the grant digest.
+        # full-auto is a broken journal. Recovery will cite the config digest.
         journal_status = "PENDING_RECOVERY"
     return {
         "status": "FULL_AUTO_ENABLED",
+        "config_path": str(path),
+        "config_digest": digest_file(path),
         "grant_path": str(path),
         "grant_digest": digest_file(path),
         "journal_status": journal_status,
@@ -155,15 +294,21 @@ def disable(project: Path, reason: str) -> dict[str, Any]:
     project = project.resolve()
     if not reason.strip():
         raise AutonomyError("disable requires a non-empty reason")
-    current = load_grant(project)
-    disabled = {
-        **current,
-        "enabled": False,
-        "disabled_at": _now(),
-        "disable_reason": reason.strip(),
-    }
-    path = grant_path(project)
-    _atomic_write(path, (json.dumps(disabled, indent=2, ensure_ascii=True) + "\n").encode("utf-8"))
+    current = _load_policy(project)
+    path = config_path(project)
+    disabled_at = _now()
+    _atomic_write(
+        path,
+        _render_config(
+            mode="governed",
+            approved_by=str(current.get("approved_by", "legacy grant")),
+            statement=str(current.get("statement", "full-auto grant migrated to governed mode")),
+            granted_at=str(current.get("granted_at", disabled_at)),
+            disabled_at=disabled_at,
+            disable_reason=reason.strip(),
+        ),
+    )
+    _retire_legacy(project, migrated_to=path)
     event_id = None
     try:
         event_id = journal.append_event(
@@ -171,8 +316,8 @@ def disable(project: Path, reason: str) -> dict[str, Any]:
             "autonomy_changed.v1",
             {
                 "enabled": False,
-                "grant_path": GRANT_NAME,
-                "grant_digest": digest_file(path),
+                "config_path": str(path.relative_to(project)),
+                "config_digest": digest_file(path),
                 "reason": reason.strip(),
             },
         )["event_id"]
@@ -180,6 +325,7 @@ def disable(project: Path, reason: str) -> dict[str, Any]:
         pass
     return {
         "status": "FULL_AUTO_DISABLED",
+        "config_path": str(path),
         "grant_path": str(path),
         **({"event_id": event_id} if event_id else {}),
     }
@@ -187,16 +333,95 @@ def disable(project: Path, reason: str) -> dict[str, Any]:
 
 def status(project: Path) -> dict[str, Any]:
     project = project.resolve()
+    configured = config_path(project)
+    legacy = legacy_grant_path(project)
+    if not configured.exists() and not legacy.exists():
+        return {
+            "status": "FULL_AUTO_DISABLED",
+            "mode": "governed",
+            "reason": "Loop OS config absent",
+            "config_path": str(configured),
+            "migration_required": False,
+        }
+    grant = _load_policy(project)
     path = grant_path(project)
-    if not path.exists():
-        return {"status": "FULL_AUTO_DISABLED", "reason": "grant file absent"}
-    grant = _load_object(path, "full-auto grant")
     return {
         "status": "FULL_AUTO_ENABLED" if grant.get("enabled") is True else "FULL_AUTO_DISABLED",
+        "mode": grant.get("mode"),
+        "source": grant.get("source"),
+        "migration_required": grant.get("source") == "legacy",
+        "config_path": str(configured),
         "grant_path": str(path),
+        "config_digest": digest_file(path),
         "grant_digest": digest_file(path),
         "approved_by": grant.get("approved_by"),
         "scopes": grant.get("scopes", []),
+    }
+
+
+def migrate(project: Path) -> dict[str, Any]:
+    """Expand a legacy JSON grant into config.toml, then retire the old source.
+
+    The legacy file is preserved with enabled=false so old readers fail safe.
+    Re-running is idempotent once config.toml exists.
+    """
+    project = project.resolve()
+    configured = config_path(project)
+    legacy_path = legacy_grant_path(project)
+    if configured.exists():
+        _load_config(configured)
+        _retire_legacy(project, migrated_to=configured)
+        return {
+            "status": "ALREADY_MIGRATED",
+            "config_path": str(configured),
+            "config_digest": digest_file(configured),
+        }
+    legacy = _load_legacy_grant(legacy_path)
+    legacy_original_digest = digest_file(legacy_path)
+    approved_by = str(legacy.get("approved_by", "")).strip()
+    statement = str(legacy.get("statement", "")).strip()
+    granted_at = str(legacy.get("granted_at", "")).strip()
+    if not approved_by or not statement or not granted_at:
+        raise AutonomyError("legacy full-auto grant lacks approved_by, statement, or granted_at")
+    mode = "full_auto" if legacy.get("enabled") is True else "governed"
+    _atomic_write(
+        configured,
+        _render_config(
+            mode=mode,
+            approved_by=approved_by,
+            statement=statement,
+            granted_at=granted_at,
+            disabled_at=legacy.get("disabled_at") if mode == "governed" else None,
+            disable_reason=legacy.get("disable_reason") if mode == "governed" else None,
+        ),
+    )
+    _retire_legacy(project, migrated_to=configured)
+    event_id = None
+    journal_status = "RECORDED"
+    try:
+        journal.load_events(project)
+        journal.check_anchor(project)
+        event_id = journal.append_event(
+            project,
+            "autonomy_changed.v1",
+            {
+                "enabled": mode == "full_auto",
+                "source": "legacy-migration",
+                "config_path": str(configured.relative_to(project)),
+                "config_digest": digest_file(configured),
+                "legacy_grant_original_digest": legacy_original_digest,
+                "legacy_grant_retired_digest": digest_file(legacy_path),
+            },
+        )["event_id"]
+    except journal.JournalError:
+        journal_status = "PENDING_RECOVERY"
+    return {
+        "status": "CONFIG_MIGRATED",
+        "mode": mode,
+        "config_path": str(configured),
+        "config_digest": digest_file(configured),
+        "journal_status": journal_status,
+        **({"event_id": event_id} if event_id else {}),
     }
 
 
@@ -248,7 +473,11 @@ def recover(
     if original_anchor:
         _archive_once(recovery_dir / "anchor.original.json", original_anchor)
     _archive_once(recovery_dir / "decision.json", decision_path.read_bytes())
-    _archive_once(recovery_dir / "grant.json", grant_path(project).read_bytes())
+    authority_path = grant_path(project)
+    authority_archive = (
+        "autonomy-config.toml" if authority_path.suffix == ".toml" else "legacy-grant.json"
+    )
+    _archive_once(recovery_dir / authority_archive, authority_path.read_bytes())
 
     retained: list[dict[str, Any]] = []
     dropped: list[dict[str, Any]] = []
@@ -318,7 +547,8 @@ def recover(
             "archive_path": str(recovery_dir.relative_to(project)),
             "decision_path": str(decision_path),
             "decision_digest": digest_file(decision_path),
-            "grant_digest": digest_file(grant_path(project)),
+            "config_digest": digest_file(authority_path),
+            "grant_digest": digest_file(authority_path),
             "retained_events": len(retained),
             "dropped_records": dropped,
         },
@@ -357,6 +587,9 @@ def main(argv: list[str] | None = None) -> int:
     status_parser = sub.add_parser("status")
     status_parser.add_argument("--project", type=Path, required=True)
 
+    migrate_parser = sub.add_parser("migrate")
+    migrate_parser.add_argument("--project", type=Path, required=True)
+
     recover_parser = sub.add_parser("recover")
     recover_parser.add_argument("--project", type=Path, required=True)
     recover_parser.add_argument("--decision", type=Path, required=True)
@@ -370,6 +603,8 @@ def main(argv: list[str] | None = None) -> int:
             result = disable(args.project, args.reason)
         elif args.command == "status":
             result = status(args.project)
+        elif args.command == "migrate":
+            result = migrate(args.project)
         else:
             result = recover(args.project, args.decision, args.project_id)
         return _emit(result)

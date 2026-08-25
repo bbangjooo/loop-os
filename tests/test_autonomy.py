@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -35,6 +36,13 @@ def test_enable_records_project_local_grant(registered_project: Path) -> None:
     )
     assert result["status"] == "FULL_AUTO_ENABLED"
     assert result["journal_status"] == "RECORDED"
+    assert Path(result["config_path"]) == autonomy.config_path(registered_project)
+    parsed = tomllib.loads(autonomy.config_path(registered_project).read_text(encoding="utf-8"))
+    assert parsed["schema"] == autonomy.CONFIG_SCHEMA
+    assert parsed["autonomy"]["mode"] == "full_auto"
+    assert parsed["autonomy"]["constitutional_jumps"] == "agent"
+    assert parsed["autonomy"]["journal_recovery"] == "agent"
+    assert parsed["autonomy"]["continue_until"] == "external_goal"
     grant = autonomy.load_grant(registered_project, required_scope="constitutional_jump")
     assert grant["enabled"] is True
     assert set(grant["scopes"]) == set(autonomy.GRANT_SCOPES)
@@ -45,8 +53,104 @@ def test_disable_is_the_rollback_path(registered_project: Path) -> None:
     autonomy.enable(registered_project, "user", "full-auto requested")
     result = autonomy.disable(registered_project, "return to governed mode")
     assert result["status"] == "FULL_AUTO_DISABLED"
+    parsed = tomllib.loads(autonomy.config_path(registered_project).read_text(encoding="utf-8"))
+    assert parsed["autonomy"]["mode"] == "governed"
+    assert parsed["autonomy"]["constitutional_jumps"] == "human"
     with pytest.raises(autonomy.AutonomyError, match="disabled"):
         autonomy.load_grant(registered_project)
+
+
+def _legacy_grant(project: Path, *, enabled: bool = True) -> Path:
+    path = autonomy.legacy_grant_path(project)
+    path.write_text(
+        json.dumps(
+            {
+                "schema": autonomy.LEGACY_GRANT_SCHEMA,
+                "enabled": enabled,
+                "approved_by": "legacy user",
+                "statement": "delegate old full-auto mode",
+                "scopes": list(autonomy.GRANT_SCOPES),
+                "granted_at": "2026-08-25T00:00:00Z",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def test_legacy_grant_remains_readable_during_migration_window(project: Path) -> None:
+    legacy = _legacy_grant(project)
+    grant = autonomy.load_grant(project, required_scope="journal_recovery")
+    assert grant["source"] == "legacy"
+    assert autonomy.grant_path(project) == legacy
+    assert autonomy.status(project)["migration_required"] is True
+
+
+def test_migrate_expands_config_and_retires_legacy_grant(
+    registered_project: Path,
+) -> None:
+    legacy = _legacy_grant(registered_project)
+    original_digest = digest_bytes(legacy.read_bytes())
+
+    result = autonomy.migrate(registered_project)
+
+    assert result["status"] == "CONFIG_MIGRATED"
+    assert autonomy.load_grant(registered_project)["source"] == "config"
+    retired = json.loads(legacy.read_text(encoding="utf-8"))
+    assert retired["enabled"] is False
+    assert retired["migrated_to"] == ".loop-os/config.toml"
+    migration_event = journal.load_events(registered_project)[-1]["body"]
+    assert migration_event["legacy_grant_original_digest"] == original_digest
+    assert migration_event["legacy_grant_retired_digest"] == digest_bytes(legacy.read_bytes())
+    assert autonomy.migrate(registered_project)["status"] == "ALREADY_MIGRATED"
+
+
+def test_missing_config_defaults_to_governed_status(project: Path) -> None:
+    result = autonomy.status(project)
+    assert result["status"] == "FULL_AUTO_DISABLED"
+    assert result["mode"] == "governed"
+    assert result["reason"] == "Loop OS config absent"
+    assert result["migration_required"] is False
+
+
+def test_hand_injected_config_is_the_cross_harness_authority(project: Path) -> None:
+    path = autonomy.config_path(project)
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        """\
+schema = "loop-os-config-v1"
+
+[autonomy]
+mode = "full_auto"
+constitutional_jumps = "agent"
+journal_recovery = "agent"
+continue_until = "external_goal"
+independent_review = true
+
+[autonomy.grant]
+approved_by = "operator"
+statement = "delegate Loop OS autonomy"
+granted_at = "2026-08-25T00:00:00Z"
+""",
+        encoding="utf-8",
+    )
+
+    grant = autonomy.load_grant(project, required_scope="continuous_goal")
+
+    assert grant["source"] == "config"
+    assert autonomy.status(project)["mode"] == "full_auto"
+
+
+def test_config_precedes_enabled_legacy_grant(project: Path) -> None:
+    _legacy_grant(project)
+    autonomy.enable(project, "operator", "delegate Loop OS autonomy")
+    autonomy.disable(project, "return to governed mode")
+
+    with pytest.raises(autonomy.AutonomyError, match="disabled"):
+        autonomy.load_grant(project)
+    retired = json.loads(autonomy.legacy_grant_path(project).read_text(encoding="utf-8"))
+    assert retired["enabled"] is False
 
 
 def test_recovery_archives_original_and_rechains_readable_events(
