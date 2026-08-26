@@ -19,9 +19,16 @@
 # stage as `effective_integrity`. A spec kept outside the worktree (say /tmp) is exempt
 # from all of this and gets no summary.
 #
-# The loop refuses to start on a dirty worktree or on main/master, and it reverts
-# every rejected iteration with `git reset --hard`. Do not point it at a branch
-# whose uncommitted work you care about.
+# The loop refuses to start on a dirty worktree or on main/master and exclusively
+# locks that worktree for the run. Only the loop may advance its checked-out branch:
+# an agent-side commit, reset, or branch switch voids the iteration and restores the
+# exact expected ref, HEAD, index, and tracked/untracked worktree state. Rejection and
+# post-agent errors use the same explicit restoration, including worktree-private
+# merge/rebase/cherry-pick state; a pre-existing operation is refused. Accepted changes
+# use hook-free Git plumbing and a compare-and-swap ref update, so repository hooks
+# cannot advance the transaction behind the loop. Timed-out commands are run in their
+# own process group so descendants are terminated with the parent. Do not point the
+# loop at a branch whose uncommitted work you care about.
 
 loop_id: ruff-any
 

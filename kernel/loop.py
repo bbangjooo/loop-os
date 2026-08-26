@@ -29,12 +29,16 @@ a specific agent vendor.
 from __future__ import annotations
 
 import argparse
+import contextlib
+import errno
 import hashlib
 import json
 import os
 import re
 import secrets
 import shlex
+import shutil
+import signal
 import stat
 import subprocess
 import sys
@@ -102,6 +106,52 @@ class SpecError(ValueError):
 
 class PreconditionError(RuntimeError):
     """The repository is not in a state where the loop may run."""
+
+
+@dataclass
+class _GitBaseline:
+    ref: str
+    head: str
+
+
+@contextlib.contextmanager
+def _worktree_lock(repo: Path) -> Any:
+    """Exclusively own this worktree's git state for one run."""
+    git_dir = Path(_git(repo, "rev-parse", "--absolute-git-dir")).resolve()
+    lock_path = git_dir / "experiment-loop.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    handle = lock_path.open("a+b")
+    try:
+        handle.seek(0)
+        handle.write(b"0")
+        handle.flush()
+        if os.name == "nt":
+            import msvcrt
+
+            try:
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+            except OSError as error:
+                raise PreconditionError(
+                    "another experiment loop run holds this worktree lock"
+                ) from error
+        else:
+            import fcntl
+
+            try:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError as error:
+                raise PreconditionError(
+                    "another experiment loop run holds this worktree lock"
+                ) from error
+        try:
+            yield
+        finally:
+            if os.name == "nt":
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+    finally:
+        handle.close()
 
 
 def _require_mapping(value: Any, *, path: str, allowed: set[str]) -> dict[str, Any]:
@@ -547,33 +597,179 @@ class CommandResult:
         return self.exit_code == 0 and not self.timed_out
 
 
+class _WindowsJob:
+    """Kill-on-close ownership for a Windows command and all descendants."""
+
+    def __init__(self) -> None:
+        import ctypes
+        from ctypes import wintypes
+
+        class _IoCounters(ctypes.Structure):
+            _fields_ = [
+                ("read_operations", ctypes.c_ulonglong),
+                ("write_operations", ctypes.c_ulonglong),
+                ("other_operations", ctypes.c_ulonglong),
+                ("read_bytes", ctypes.c_ulonglong),
+                ("write_bytes", ctypes.c_ulonglong),
+                ("other_bytes", ctypes.c_ulonglong),
+            ]
+
+        class _BasicLimits(ctypes.Structure):
+            _fields_ = [
+                ("per_process_time", ctypes.c_longlong),
+                ("per_job_time", ctypes.c_longlong),
+                ("flags", wintypes.DWORD),
+                ("minimum_working_set", ctypes.c_size_t),
+                ("maximum_working_set", ctypes.c_size_t),
+                ("active_process_limit", wintypes.DWORD),
+                ("affinity", ctypes.c_size_t),
+                ("priority_class", wintypes.DWORD),
+                ("scheduling_class", wintypes.DWORD),
+            ]
+
+        class _ExtendedLimits(ctypes.Structure):
+            _fields_ = [
+                ("basic", _BasicLimits),
+                ("io", _IoCounters),
+                ("process_memory_limit", ctypes.c_size_t),
+                ("job_memory_limit", ctypes.c_size_t),
+                ("peak_process_memory", ctypes.c_size_t),
+                ("peak_job_memory", ctypes.c_size_t),
+            ]
+
+        self._ctypes = ctypes
+        self._wintypes = wintypes
+        self._kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        self._ntdll = ctypes.WinDLL("ntdll")
+        self._kernel32.CreateJobObjectW.restype = wintypes.HANDLE
+        self._kernel32.SetInformationJobObject.argtypes = [
+            wintypes.HANDLE,
+            ctypes.c_int,
+            ctypes.c_void_p,
+            wintypes.DWORD,
+        ]
+        self._kernel32.AssignProcessToJobObject.argtypes = [wintypes.HANDLE, wintypes.HANDLE]
+        self._kernel32.TerminateJobObject.argtypes = [wintypes.HANDLE, wintypes.UINT]
+        self._kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+        self._ntdll.NtResumeProcess.argtypes = [wintypes.HANDLE]
+        self._ntdll.NtResumeProcess.restype = ctypes.c_long
+        self._handle = self._kernel32.CreateJobObjectW(None, None)
+        if not self._handle:
+            raise ctypes.WinError(ctypes.get_last_error())
+        limits = _ExtendedLimits()
+        limits.basic.flags = 0x00002000  # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+        if not self._kernel32.SetInformationJobObject(
+            self._handle, 9, ctypes.byref(limits), ctypes.sizeof(limits)
+        ):
+            error = ctypes.WinError(ctypes.get_last_error())
+            self.close()
+            raise error
+
+    def assign(self, process: subprocess.Popen[str]) -> None:
+        process_handle = self._wintypes.HANDLE(int(process._handle))  # type: ignore[attr-defined]
+        if not self._kernel32.AssignProcessToJobObject(self._handle, process_handle):
+            raise self._ctypes.WinError(self._ctypes.get_last_error())
+
+    def resume(self, process: subprocess.Popen[str]) -> None:
+        process_handle = self._wintypes.HANDLE(int(process._handle))  # type: ignore[attr-defined]
+        status = self._ntdll.NtResumeProcess(process_handle)
+        if status != 0:
+            raise OSError(f"NtResumeProcess failed with NTSTATUS 0x{status & 0xFFFFFFFF:08x}")
+
+    def terminate(self) -> None:
+        if self._handle and not self._kernel32.TerminateJobObject(self._handle, 1):
+            raise self._ctypes.WinError(self._ctypes.get_last_error())
+
+    def close(self) -> None:
+        if self._handle:
+            self._kernel32.CloseHandle(self._handle)
+            self._handle = None
+
+
 def run_command(
     command: Sequence[str], *, cwd: Path, timeout_seconds: int, env: Mapping[str, str] | None = None
 ) -> CommandResult:
     merged = dict(os.environ)
     if env:
         merged.update(env)
-    try:
-        completed = subprocess.run(
-            list(command),
-            cwd=cwd,
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=timeout_seconds,
-            env=merged,
+    popen_kwargs: dict[str, Any] = {
+        "cwd": cwd,
+        "stdout": subprocess.PIPE,
+        "stderr": subprocess.PIPE,
+        "text": True,
+        "env": merged,
+    }
+    job = _WindowsJob() if os.name == "nt" else None
+    if job is not None:
+        popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | getattr(
+            subprocess, "CREATE_SUSPENDED", 0x00000004
         )
-    except subprocess.TimeoutExpired as expired:
+    else:
+        popen_kwargs["start_new_session"] = True
+    try:
+        process = subprocess.Popen(list(command), **popen_kwargs)
+    except BaseException:
+        if job is not None:
+            job.close()
+        raise
+    if job is not None:
+        try:
+            job.assign(process)
+            job.resume(process)
+        except BaseException:
+            try:
+                job.terminate()
+            finally:
+                job.close()
+                process.wait()
+            raise
+
+    def stop_process_group(*, force: bool) -> None:
+        if job is not None:
+            try:
+                if force:
+                    job.terminate()
+            finally:
+                job.close()
+            return
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+        except OSError as error:
+            if error.errno in (errno.ESRCH, errno.EPERM):
+                return
+            raise
+        time.sleep(0.1)
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except OSError as error:
+            if error.errno not in (errno.ESRCH, errno.EPERM):
+                raise
+
+    try:
+        stdout, stderr = process.communicate(timeout=timeout_seconds)
+    except subprocess.TimeoutExpired:
+        stop_process_group(force=True)
+        stdout, stderr = process.communicate()
         return CommandResult(
             exit_code=124,
-            stdout=expired.stdout.decode("utf-8", "replace") if expired.stdout else "",
-            stderr=expired.stderr.decode("utf-8", "replace") if expired.stderr else "",
+            stdout=stdout or "",
+            stderr=stderr or "",
             timed_out=True,
         )
+    except BaseException:
+        stop_process_group(force=True)
+        try:
+            process.communicate(timeout=1)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        raise
+    # A command can exit while its children keep the pipes open only after closing
+    # their copies.  Its process group/session is private, so reap those stragglers.
+    stop_process_group(force=False)
     return CommandResult(
-        exit_code=completed.returncode,
-        stdout=completed.stdout,
-        stderr=completed.stderr,
+        exit_code=process.returncode,
+        stdout=stdout,
+        stderr=stderr,
         timed_out=False,
     )
 
@@ -688,6 +884,11 @@ def check_preconditions(
     # Before the clean-worktree check: an untracked spec is *why* the worktree is
     # dirty, and "commit or stash first" is the wrong advice for it.
     _check_spec_survives_a_revert(repo, spec_path)
+    if _git_operation_in_progress(repo):
+        raise PreconditionError(
+            "a Git merge, rebase, cherry-pick, revert, or sequencer operation is in progress; "
+            "finish or abort it before running the loop"
+        )
     if not _worktree_is_clean(repo):
         raise PreconditionError(
             "the worktree has uncommitted changes; the loop reverts with 'git reset --hard' "
@@ -710,21 +911,94 @@ def default_run_dir(repo: Path, loop_id: str) -> Path:
     return git_dir / "experiment-loop" / loop_id
 
 
-def _revert(repo: Path, *, clean_ignored: bool) -> None:
-    _git(repo, "reset", "--hard")
+def _head_matches(repo: Path, baseline: _GitBaseline) -> bool:
+    return (
+        _git(repo, "rev-parse", "--symbolic-full-name", "HEAD") == baseline.ref
+        and _git(repo, "rev-parse", "HEAD") == baseline.head
+    )
+
+
+def _raw_commit_parents(repo: Path, commit: str) -> list[str]:
+    """Read stored parent headers without honoring agent-controlled replace refs."""
+    raw = _git(repo, "--no-replace-objects", "cat-file", "commit", commit)
+    parents: list[str] = []
+    for line in raw.splitlines():
+        if not line:
+            break
+        if line.startswith("parent "):
+            parents.append(line.removeprefix("parent "))
+    return parents
+
+
+def _git_operation_in_progress(repo: Path) -> bool:
+    return any(path.exists() or path.is_symlink() for path in _git_operation_paths(repo))
+
+
+def _git_operation_paths(repo: Path) -> list[Path]:
+    git_dir = Path(_git(repo, "rev-parse", "--absolute-git-dir")).resolve()
+    paths: list[Path] = []
+    for name in (
+        "MERGE_HEAD",
+        "CHERRY_PICK_HEAD",
+        "REVERT_HEAD",
+        "rebase-apply",
+        "rebase-merge",
+        "sequencer",
+    ):
+        path = Path(_git(repo, "rev-parse", "--git-path", name))
+        if not path.is_absolute():
+            path = repo / path
+        path = path.absolute()
+        if not path.is_relative_to(git_dir):
+            raise RuntimeError(f"Git operation path escaped the worktree git dir: {path}")
+        paths.append(path)
+    return paths
+
+
+def _clear_git_operation(repo: Path) -> None:
+    for path in _git_operation_paths(repo):
+        if path.is_symlink() or path.is_file():
+            path.unlink(missing_ok=True)
+        elif path.is_dir():
+            shutil.rmtree(path)
+
+
+def _revert(repo: Path, *, baseline: _GitBaseline, clean_ignored: bool) -> None:
+    """Restore the one ref and commit this invocation is authorized to advance."""
+    _git(repo, "update-ref", baseline.ref, baseline.head)
+    _git(repo, "symbolic-ref", "HEAD", baseline.ref)
+    _git(repo, "reset", "--hard", baseline.head)
     _git(repo, "clean", "-fdx" if clean_ignored else "-fd")
+    _clear_git_operation(repo)
+    if (
+        not _head_matches(repo, baseline)
+        or not _worktree_is_clean(repo)
+        or _git_operation_in_progress(repo)
+    ):
+        raise RuntimeError(
+            "repository rollback did not restore the expected ref, HEAD, and clean tree"
+        )
 
 
 def _accept(
-    repo: Path, *, loop_id: str, stage_id: str, iteration: int, before: float, after: float
+    repo: Path,
+    *,
+    baseline: _GitBaseline,
+    loop_id: str,
+    stage_id: str,
+    iteration: int,
+    before: float,
+    after: float,
 ) -> str:
     _git(repo, "add", "-A")
-    # The stage is in the subject because a multi-stage run leaves one history where
-    # "iteration 3" happens several times over.
+    tree = _git(repo, "write-tree")
     scope = loop_id if stage_id == DEFAULT_STAGE_ID else f"{loop_id}/{stage_id}"
     message = f"exp({scope}): iteration {iteration} objective {before:g} -> {after:g}"
-    _git(repo, "commit", "-m", message)
-    return _git(repo, "rev-parse", "HEAD")
+    commit = _git(repo, "commit-tree", tree, "-p", baseline.head, "-m", message)
+    # Compare-and-swap is the commit boundary: hooks do not run, and an unexpected
+    # ref move cannot be overwritten by a blind update.
+    _git(repo, "update-ref", "-m", message, baseline.ref, commit, baseline.head)
+    return commit
 
 
 def append_record(ledger: Path, record: Mapping[str, Any]) -> None:
@@ -938,6 +1212,7 @@ def run_iteration(
     pinned: Mapping[str, str],
     guard_baseline: MutableMapping[str, Any],
     history: list[dict[str, Any]],
+    baseline: _GitBaseline,
 ) -> Iteration:
     started = time.monotonic()
     state = Iteration(iteration=iteration, decision="rejected", reason="")
@@ -966,105 +1241,149 @@ def run_iteration(
     prompt_file = run_dir / f"prompt-{stage.stage_id}-{iteration:04d}.txt"
     prompt_file.write_text(prompt, encoding="utf-8")
 
-    agent = run_command(
-        _agent_argv(spec.agent_command, prompt=prompt, prompt_file=prompt_file),
-        cwd=repo,
-        timeout_seconds=spec.agent_timeout_seconds,
-        env={
-            "EXPERIMENT_LOOP_PROMPT_FILE": str(prompt_file),
-            "EXPERIMENT_LOOP_ITERATION": str(iteration),
-            "EXPERIMENT_LOOP_ID": spec.loop_id,
-            "EXPERIMENT_LOOP_STAGE": stage.stage_id,
-        },
-    )
-    (run_dir / f"agent-{stage.stage_id}-{iteration:04d}.log").write_text(
-        agent.stdout + ("\n--- stderr ---\n" + agent.stderr if agent.stderr else ""),
-        encoding="utf-8",
-    )
-    state.agent_exit_code = agent.exit_code
-    state.agent_summary = _extract_summary(agent.stdout, spec.agent_summary_prefix)
-
-    if digest_paths(repo, list(pinned)) != dict(pinned):
-        _revert(repo, clean_ignored=spec.clean_ignored)
-        state.decision = "void"
-        state.reason = "a pinned path changed during the iteration"
-        state.duration_seconds = time.monotonic() - started
-        return state
-
-    if _worktree_is_clean(repo):
-        state.reason = "the agent left the worktree unchanged"
-        state.objective_after = before
-        state.duration_seconds = time.monotonic() - started
-        return state
-
-    if agent.timed_out:
-        _revert(repo, clean_ignored=spec.clean_ignored)
-        state.reason = "the agent timed out"
-        state.duration_seconds = time.monotonic() - started
-        return state
-
-    failures: list[str] = []
-    readings: dict[str, float] = {}
-    for guard in stage.guards:
-        result = run_command(guard.command, cwd=repo, timeout_seconds=guard.timeout_seconds)
-        reason, reading = _evaluate_guard(guard, result, guard_baseline)
-        record: dict[str, Any] = {
-            "id": guard.guard_id,
-            "kind": guard.kind,
-            "status": "pass" if reason is None else "fail",
-            "exit_code": result.exit_code,
-        }
-        if reading is not None:
-            record["reading"] = reading
-            if guard.ratchet:
-                readings[guard.guard_id] = reading
-        state.guards.append(record)
-        if reason is not None:
-            failures.append(reason)
-            break
-
-    if failures:
-        _revert(repo, clean_ignored=spec.clean_ignored)
-        state.reason = failures[0]
-        state.duration_seconds = time.monotonic() - started
-        return state
-
-    after_measurement = run_command(
-        stage.objective.command, cwd=repo, timeout_seconds=stage.objective.timeout_seconds
-    )
-    if not after_measurement.ok:
-        _revert(repo, clean_ignored=spec.clean_ignored)
-        state.reason = (
-            f"objective command failed after the change (exit {after_measurement.exit_code})"
+    try:
+        agent = run_command(
+            _agent_argv(spec.agent_command, prompt=prompt, prompt_file=prompt_file),
+            cwd=repo,
+            timeout_seconds=spec.agent_timeout_seconds,
+            env={
+                "EXPERIMENT_LOOP_PROMPT_FILE": str(prompt_file),
+                "EXPERIMENT_LOOP_ITERATION": str(iteration),
+                "EXPERIMENT_LOOP_ID": spec.loop_id,
+                "EXPERIMENT_LOOP_STAGE": stage.stage_id,
+            },
         )
+        (run_dir / f"agent-{stage.stage_id}-{iteration:04d}.log").write_text(
+            agent.stdout + ("\n--- stderr ---\n" + agent.stderr if agent.stderr else ""),
+            encoding="utf-8",
+        )
+        state.agent_exit_code = agent.exit_code
+        state.agent_summary = _extract_summary(agent.stdout, spec.agent_summary_prefix)
+
+        if not _head_matches(repo, baseline):
+            _revert(repo, baseline=baseline, clean_ignored=spec.clean_ignored)
+            state.decision = "void"
+            state.reason = "the agent changed the expected Git HEAD or branch"
+            state.duration_seconds = time.monotonic() - started
+            return state
+
+        if agent.timed_out:
+            _revert(repo, baseline=baseline, clean_ignored=spec.clean_ignored)
+            state.reason = "the agent timed out"
+            state.duration_seconds = time.monotonic() - started
+            return state
+
+        if agent.exit_code != 0:
+            _revert(repo, baseline=baseline, clean_ignored=spec.clean_ignored)
+            state.reason = f"the agent exited nonzero (exit {agent.exit_code})"
+            state.duration_seconds = time.monotonic() - started
+            return state
+
+        if digest_paths(repo, list(pinned)) != dict(pinned):
+            _revert(repo, baseline=baseline, clean_ignored=spec.clean_ignored)
+            state.decision = "void"
+            state.reason = "a pinned path changed during the iteration"
+            state.duration_seconds = time.monotonic() - started
+            return state
+
+        if _worktree_is_clean(repo):
+            state.reason = "the agent left the worktree unchanged"
+            state.objective_after = before
+            state.duration_seconds = time.monotonic() - started
+            return state
+
+        failures: list[str] = []
+        readings: dict[str, float] = {}
+        for guard in stage.guards:
+            result = run_command(guard.command, cwd=repo, timeout_seconds=guard.timeout_seconds)
+            reason, reading = _evaluate_guard(guard, result, guard_baseline)
+            record: dict[str, Any] = {
+                "id": guard.guard_id,
+                "kind": guard.kind,
+                "status": "pass" if reason is None else "fail",
+                "exit_code": result.exit_code,
+            }
+            if reading is not None:
+                record["reading"] = reading
+                if guard.ratchet:
+                    readings[guard.guard_id] = reading
+            state.guards.append(record)
+            if reason is not None:
+                failures.append(reason)
+                break
+
+        if failures:
+            _revert(repo, baseline=baseline, clean_ignored=spec.clean_ignored)
+            state.reason = failures[0]
+            state.duration_seconds = time.monotonic() - started
+            return state
+
+        after_measurement = run_command(
+            stage.objective.command, cwd=repo, timeout_seconds=stage.objective.timeout_seconds
+        )
+        if not after_measurement.ok:
+            _revert(repo, baseline=baseline, clean_ignored=spec.clean_ignored)
+            state.reason = (
+                f"objective command failed after the change (exit {after_measurement.exit_code})"
+            )
+            state.duration_seconds = time.monotonic() - started
+            return state
+        after = parse_scalar(after_measurement.stdout)
+        state.objective_after = after
+
+        if not stage.objective.is_improvement(before, after):
+            _revert(repo, baseline=baseline, clean_ignored=spec.clean_ignored)
+            state.reason = f"objective did not improve ({before:g} -> {after:g})"
+            state.duration_seconds = time.monotonic() - started
+            return state
+
+        if not _head_matches(repo, baseline):
+            _revert(repo, baseline=baseline, clean_ignored=spec.clean_ignored)
+            state.decision = "void"
+            state.reason = "the expected Git HEAD or branch changed before acceptance"
+            state.duration_seconds = time.monotonic() - started
+            return state
+        if _git_operation_in_progress(repo):
+            _revert(repo, baseline=baseline, clean_ignored=spec.clean_ignored)
+            state.decision = "void"
+            state.reason = "the agent left a Git operation in progress"
+            state.duration_seconds = time.monotonic() - started
+            return state
+
+        parent = baseline.head
+        state.commit = _accept(
+            repo,
+            baseline=baseline,
+            loop_id=spec.loop_id,
+            stage_id=stage.stage_id,
+            iteration=iteration,
+            before=before,
+            after=after,
+        )
+        committed = _GitBaseline(ref=baseline.ref, head=state.commit)
+        if (
+            not _head_matches(repo, committed)
+            or _raw_commit_parents(repo, state.commit) != [parent]
+            or not _worktree_is_clean(repo)
+        ):
+            _revert(repo, baseline=baseline, clean_ignored=spec.clean_ignored)
+            state.commit = None
+            state.decision = "void"
+            state.reason = "the kernel commit did not exclusively advance the expected Git HEAD"
+            state.duration_seconds = time.monotonic() - started
+            return state
+
+        # Only now, past every gate and the commit postcondition: a ratcheted guard's
+        # floor moves up to what this accepted tree actually reads.
+        guard_baseline.update(readings)
+        baseline.head = state.commit
+        state.decision = "accepted"
+        state.reason = f"objective improved ({before:g} -> {after:g})"
         state.duration_seconds = time.monotonic() - started
         return state
-    after = parse_scalar(after_measurement.stdout)
-    state.objective_after = after
-
-    if not stage.objective.is_improvement(before, after):
-        _revert(repo, clean_ignored=spec.clean_ignored)
-        state.reason = f"objective did not improve ({before:g} -> {after:g})"
-        state.duration_seconds = time.monotonic() - started
-        return state
-
-    # Only now, past every gate: a ratcheted guard's floor moves up to what this
-    # accepted tree actually reads.  Do it earlier and a rejected iteration would raise
-    # the bar for the ones that follow it.
-    guard_baseline.update(readings)
-
-    state.commit = _accept(
-        repo,
-        loop_id=spec.loop_id,
-        stage_id=stage.stage_id,
-        iteration=iteration,
-        before=before,
-        after=after,
-    )
-    state.decision = "accepted"
-    state.reason = f"objective improved ({before:g} -> {after:g})"
-    state.duration_seconds = time.monotonic() - started
-    return state
+    except BaseException:
+        _revert(repo, baseline=baseline, clean_ignored=spec.clean_ignored)
+        raise
 
 
 @dataclass
@@ -1199,6 +1518,7 @@ def _run_stage(
     ledger: Path,
     branch: str,
     start_commit: str,
+    baseline: _GitBaseline,
     run_id: str,
     budget: int,
     write_legacy_baseline: bool,
@@ -1238,6 +1558,7 @@ def _run_stage(
             pinned=pinned,
             guard_baseline=guard_baseline,
             history=history,
+            baseline=baseline,
         )
         append_record(ledger, result.to_record(spec, stage, run_id=run_id))
         state.iterations_run = iteration
@@ -1266,7 +1587,7 @@ def _run_stage(
     return state
 
 
-def run_loop(
+def _run_loop(
     spec: Spec,
     repo: Path,
     *,
@@ -1283,6 +1604,10 @@ def run_loop(
     run_dir.mkdir(parents=True, exist_ok=True)
     ledger = run_dir / "ledger.jsonl"
     start_commit = _git(repo, "rev-parse", "HEAD")
+    baseline = _GitBaseline(
+        ref=_git(repo, "rev-parse", "--symbolic-full-name", "HEAD"),
+        head=start_commit,
+    )
     # The ledger is append-only and keyed by loop_id, so it may already hold earlier
     # runs.  Every record this invocation writes carries the same run_id, and the summary
     # selects by it rather than by position — an offset would mis-slice the moment an
@@ -1323,6 +1648,7 @@ def run_loop(
                 ledger=ledger,
                 branch=branch,
                 start_commit=start_commit,
+                baseline=baseline,
                 run_id=run_id,
                 budget=budget,
                 write_legacy_baseline=position == 1,
@@ -1379,6 +1705,38 @@ def run_loop(
         if summary is not None:
             result["summary"] = str(summary)
     return result
+
+
+def run_loop(
+    spec: Spec,
+    repo: Path,
+    *,
+    run_dir: Path,
+    allow_branch: bool,
+    protected: Sequence[str],
+    max_iterations: int | None = None,
+    from_stage: str | None = None,
+) -> dict[str, Any]:
+    if not (repo / ".git").exists():
+        return _run_loop(
+            spec,
+            repo,
+            run_dir=run_dir,
+            allow_branch=allow_branch,
+            protected=protected,
+            max_iterations=max_iterations,
+            from_stage=from_stage,
+        )
+    with _worktree_lock(repo):
+        return _run_loop(
+            spec,
+            repo,
+            run_dir=run_dir,
+            allow_branch=allow_branch,
+            protected=protected,
+            max_iterations=max_iterations,
+            from_stage=from_stage,
+        )
 
 
 def _summarise_records(records: Sequence[Mapping[str, Any]], ledger: Path) -> dict[str, Any]:
