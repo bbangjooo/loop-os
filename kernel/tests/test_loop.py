@@ -4,9 +4,11 @@ import hashlib
 import importlib.util
 import json
 import os
+import signal
 import stat
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -25,6 +27,12 @@ SPEC.loader.exec_module(experiment_loop)
 def _git(repo: Path, *args: str) -> str:
     result = subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True)
     return result.stdout.strip()
+
+
+def _raw_parents(repo: Path, commit: str) -> list[str]:
+    return _git(repo, "--no-replace-objects", "rev-list", "--parents", "-n", "1", commit).split()[
+        1:
+    ]
 
 
 @pytest.fixture
@@ -1672,3 +1680,288 @@ def test_a_nondeterministic_objective_is_refused_before_the_agent_runs(
     assert result.returncode == 3
     assert "objective is not deterministic" in payload["error"]
     assert "two runs on the same tree disagree (0 then 1)" in payload["error"]
+
+
+# --- repository transaction containment ------------------------------------
+
+
+def test_agent_self_commit_is_void_and_restored(
+    repo: Path, objective: Path, tmp_path: Path
+) -> None:
+    start = _git(repo, "rev-parse", "HEAD")
+    agent = _agent(
+        tmp_path,
+        "from pathlib import Path\n"
+        "import subprocess\n"
+        "Path('value.txt').write_text('1\\n')\n"
+        "subprocess.run(['git', 'add', 'value.txt'], check=True)\n"
+        "subprocess.run(['git', 'commit', '-m', 'agent commit'], check=True)\n",
+    )
+
+    _, payload = _run(repo, _write_spec(tmp_path, objective, agent))
+
+    record = _ledger(payload)[0]
+    assert record["decision"] == "void"
+    assert record["reason"] == "the agent changed the expected Git HEAD or branch"
+    assert _git(repo, "rev-parse", "HEAD") == start
+    assert _git(repo, "status", "--porcelain") == ""
+
+
+def test_agent_branch_switch_is_void_and_restored(
+    repo: Path, objective: Path, tmp_path: Path
+) -> None:
+    start = _git(repo, "rev-parse", "HEAD")
+    agent = _agent(
+        tmp_path,
+        "import subprocess\nsubprocess.run(['git', 'checkout', '-b', 'agent-escape'], check=True)\n",
+    )
+
+    _, payload = _run(repo, _write_spec(tmp_path, objective, agent))
+
+    record = _ledger(payload)[0]
+    assert record["decision"] == "void"
+    assert record["reason"] == "the agent changed the expected Git HEAD or branch"
+    assert _git(repo, "rev-parse", "--abbrev-ref", "HEAD") == "work"
+    assert _git(repo, "rev-parse", "HEAD") == start
+
+
+def test_agent_side_commit_cannot_enter_through_a_merge(
+    repo: Path, objective: Path, tmp_path: Path
+) -> None:
+    start = _git(repo, "rev-parse", "HEAD")
+    agent = _agent(
+        tmp_path,
+        "from pathlib import Path\n"
+        "import subprocess\n"
+        "subprocess.run(['git', 'checkout', '-b', 'agent-side'], check=True)\n"
+        "Path('side.txt').write_text('side\\n')\n"
+        "subprocess.run(['git', 'add', 'side.txt'], check=True)\n"
+        "subprocess.run(['git', 'commit', '-m', 'agent side commit'], check=True)\n"
+        "subprocess.run(['git', 'checkout', 'work'], check=True)\n"
+        "subprocess.run(['git', 'merge', '--no-ff', '--no-commit', 'agent-side'], check=True)\n"
+        "Path('value.txt').write_text('1\\n')\n",
+    )
+
+    _, payload = _run(repo, _write_spec(tmp_path, objective, agent))
+
+    record = _ledger(payload)[0]
+    assert record["decision"] == "void"
+    assert record["reason"] == "the agent left a Git operation in progress"
+    assert _git(repo, "rev-parse", "HEAD") == start
+    assert not (repo / "side.txt").exists()
+    assert (repo / "value.txt").read_text() == "10\n"
+    assert _git(repo, "status", "--porcelain") == ""
+
+
+def test_nonzero_agent_exit_restores_changed_tree(
+    repo: Path, objective: Path, tmp_path: Path
+) -> None:
+    agent = _agent(
+        tmp_path,
+        "from pathlib import Path\nPath('value.txt').write_text('1\\n')\nraise SystemExit(7)\n",
+    )
+
+    _, payload = _run(repo, _write_spec(tmp_path, objective, agent))
+
+    record = _ledger(payload)[0]
+    assert record["decision"] == "rejected"
+    assert record["reason"] == "the agent exited nonzero (exit 7)"
+    assert (repo / "value.txt").read_text() == "10\n"
+    assert _git(repo, "status", "--porcelain") == ""
+
+
+def test_paused_rebase_is_cleared_during_restoration(
+    repo: Path, objective: Path, tmp_path: Path
+) -> None:
+    start = _git(repo, "rev-parse", "HEAD")
+    agent = _agent(
+        tmp_path,
+        "from pathlib import Path\n"
+        "import subprocess\n"
+        "subprocess.run(['git', 'checkout', '-b', 'agent-topic'], check=True)\n"
+        "Path('value.txt').write_text('topic\\n')\n"
+        "subprocess.run(['git', 'add', 'value.txt'], check=True)\n"
+        "subprocess.run(['git', 'commit', '-m', 'topic'], check=True)\n"
+        "subprocess.run(['git', 'checkout', 'work'], check=True)\n"
+        "Path('value.txt').write_text('work\\n')\n"
+        "subprocess.run(['git', 'add', 'value.txt'], check=True)\n"
+        "subprocess.run(['git', 'commit', '-m', 'work'], check=True)\n"
+        "subprocess.run(['git', 'checkout', 'agent-topic'], check=True)\n"
+        "result = subprocess.run(['git', 'rebase', 'work'], check=False)\n"
+        "assert result.returncode != 0\n",
+    )
+
+    _, payload = _run(repo, _write_spec(tmp_path, objective, agent))
+
+    record = _ledger(payload)[0]
+    assert record["decision"] == "void"
+    assert _git(repo, "rev-parse", "--abbrev-ref", "HEAD") == "work"
+    assert _git(repo, "rev-parse", "HEAD") == start
+    assert not experiment_loop._git_operation_in_progress(repo)
+    assert (repo / "value.txt").read_text() == "10\n"
+    assert _git(repo, "status", "--porcelain") == ""
+
+
+def test_preexisting_git_operation_is_refused(repo: Path, objective: Path, tmp_path: Path) -> None:
+    operation = Path(_git(repo, "rev-parse", "--git-path", "rebase-merge"))
+    if not operation.is_absolute():
+        operation = repo / operation
+    operation.mkdir()
+    spec = _write_spec(tmp_path, objective, _agent(tmp_path, "pass\n"))
+
+    result, payload = _run(repo, spec)
+
+    assert result.returncode == 3
+    assert "operation is in progress" in payload["error"]
+
+
+def test_post_agent_parse_error_restores_changed_tree(repo: Path, tmp_path: Path) -> None:
+    objective = _agent(
+        tmp_path,
+        "from pathlib import Path\n"
+        "print('bad' if Path('value.txt').read_text().strip() == '1' else '10')\n",
+        name="parse-objective.py",
+    )
+    agent = _agent(tmp_path, "from pathlib import Path\nPath('value.txt').write_text('1\\n')\n")
+
+    result, _ = _run(repo, _write_spec(tmp_path, objective, agent))
+
+    assert result.returncode == 3
+    assert (repo / "value.txt").read_text() == "10\n"
+    assert _git(repo, "status", "--porcelain") == ""
+
+
+def test_kernel_commit_does_not_run_repository_hooks(
+    repo: Path, objective: Path, tmp_path: Path
+) -> None:
+    start = _git(repo, "rev-parse", "HEAD")
+    hooks = Path(_git(repo, "rev-parse", "--git-path", "hooks"))
+    if not hooks.is_absolute():
+        hooks = repo / hooks
+    post_commit = hooks / "post-commit"
+    post_commit.write_text(
+        "#!/bin/sh\n"
+        'marker="$(git rev-parse --git-dir)/transaction-hook-ran"\n'
+        'test -e "$marker" && exit 0\n'
+        'touch "$marker"\n'
+        "printf 'hook\\n' > hook.txt\n"
+        "git add hook.txt\n"
+        "git commit -q -m 'hook commit'\n",
+        encoding="utf-8",
+    )
+    post_commit.chmod(0o755)
+    agent = _agent(tmp_path, IMPROVING_AGENT)
+
+    _, payload = _run(repo, _write_spec(tmp_path, objective, agent))
+
+    record = _ledger(payload)[0]
+    assert record["decision"] == "accepted"
+    assert _raw_parents(repo, _git(repo, "rev-parse", "HEAD")) == [start]
+    assert not (hooks.parent / "transaction-hook-ran").exists()
+    assert not (repo / "hook.txt").exists()
+    assert (repo / "value.txt").read_text() == "9\n"
+    assert _git(repo, "status", "--porcelain") == ""
+
+
+def test_worktree_lock_refuses_a_concurrent_run(
+    repo: Path, objective: Path, tmp_path: Path
+) -> None:
+    spec = experiment_loop.load_spec(_write_spec(tmp_path, objective, _agent(tmp_path, "pass\n")))
+    with experiment_loop._worktree_lock(repo):
+        with pytest.raises(experiment_loop.PreconditionError, match="worktree lock"):
+            experiment_loop.run_loop(
+                spec,
+                repo,
+                run_dir=tmp_path / "run",
+                allow_branch=False,
+                protected=("main", "master"),
+            )
+
+
+def test_worktree_locks_allow_independent_linked_worktrees(repo: Path, tmp_path: Path) -> None:
+    linked = tmp_path / "linked"
+    _git(repo, "worktree", "add", "-q", "-b", "linked-work", str(linked))
+
+    with experiment_loop._worktree_lock(repo):
+        with experiment_loop._worktree_lock(linked):
+            with pytest.raises(experiment_loop.PreconditionError, match="worktree lock"):
+                with experiment_loop._worktree_lock(linked):
+                    pass
+
+
+def test_timed_out_command_kills_descendant_before_it_can_write(tmp_path: Path) -> None:
+    marker = tmp_path / "descendant-marker"
+    child = f"import time; time.sleep(1.4); open({str(marker)!r}, 'w').write('late')"
+    command = [
+        sys.executable,
+        "-c",
+        "import subprocess, sys, time\n"
+        f"subprocess.Popen([sys.executable, '-c', {child!r}])\n"
+        "time.sleep(10)\n",
+    ]
+
+    result = experiment_loop.run_command(command, cwd=tmp_path, timeout_seconds=1)
+    time.sleep(0.6)
+
+    assert result.timed_out
+    assert not marker.exists()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows Job Object regression")
+def test_windows_root_exit_cannot_leave_a_descendant(tmp_path: Path) -> None:
+    marker = tmp_path / "windows-descendant-marker"
+    descendant = f"import time; time.sleep(1.4); open({str(marker)!r}, 'w').write('late')"
+    root = (
+        "import subprocess, sys\n"
+        f"subprocess.Popen([sys.executable, '-c', {descendant!r}], "
+        "stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\n"
+    )
+
+    result = experiment_loop.run_command(
+        [sys.executable, "-c", root], cwd=tmp_path, timeout_seconds=5
+    )
+    time.sleep(1.6)
+
+    assert result.ok
+    assert not marker.exists()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX signal interruption regression")
+def test_interrupted_command_kills_descendant_before_restoration(tmp_path: Path) -> None:
+    ready = tmp_path / "descendant-ready"
+    marker = tmp_path / "interrupted-descendant-marker"
+    grandchild = f"import time; time.sleep(1.4); open({str(marker)!r}, 'w').write('late')"
+    child = tmp_path / "spawn-descendant.py"
+    child.write_text(
+        "from pathlib import Path\n"
+        "import subprocess, sys, time\n"
+        f"subprocess.Popen([sys.executable, '-c', {grandchild!r}])\n"
+        f"Path({str(ready)!r}).write_text('ready')\n"
+        "time.sleep(30)\n",
+        encoding="utf-8",
+    )
+    runner_code = (
+        "import importlib.util, sys\n"
+        f"spec = importlib.util.spec_from_file_location('interrupted_loop', {str(SCRIPT)!r})\n"
+        "module = importlib.util.module_from_spec(spec)\n"
+        "sys.modules['interrupted_loop'] = module\n"
+        "spec.loader.exec_module(module)\n"
+        f"module.run_command([sys.executable, {str(child)!r}], "
+        f"cwd={str(tmp_path)!r}, timeout_seconds=30)\n"
+    )
+    runner = subprocess.Popen(
+        [sys.executable, "-c", runner_code],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    deadline = time.monotonic() + 5
+    while not ready.exists() and time.monotonic() < deadline:
+        time.sleep(0.02)
+    assert ready.exists()
+
+    runner.send_signal(signal.SIGINT)
+    runner.communicate(timeout=5)
+    time.sleep(1.6)
+
+    assert not marker.exists()
