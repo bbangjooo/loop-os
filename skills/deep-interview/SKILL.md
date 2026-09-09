@@ -190,11 +190,18 @@ research direction, not a current execution state.
 ## Success Evidence
 <what evidence would justify continuing or declaring success>
 
+## Existing Evidence and Required Follow-ups
+<existing candidates, residuals, results and unfinished obligations, with sources;
+distinguish required continuations from optional initial-frame ideas>
+
 ## Falsifiers and Failure Signals
 <what observations would reject the current direction>
 
 ## Constraints
-- <must remain true>
+- <user requirement or necessary validity condition, with its source>
+
+## Working Assumptions
+<agent interpretations and provisional assumptions to test; not extra user mandates>
 
 ## Non-Goals and Deferrals
 - <explicitly out of scope>
@@ -209,6 +216,10 @@ research direction, not a current execution state.
 Do not put runtime state in this file. In particular, do not add
 `current_phase`, `next_action`, `pending_obligation`, or mutable iteration
 counters. Runtime state belongs to the Loop OS journal.
+The existing-evidence section records the starting commitments, not a mutable
+task board. Later diagnoses track what remains or why a commitment is deferred.
+Keep actual success evidence distinct from readiness checks such as collecting
+data, implementing an evaluator, or producing a report.
 
 After writing the file, report its path and the next action:
 
@@ -218,4 +229,3 @@ contract builder can derive the first execution frame.
 ```
 
 The interview ends here. It does not write a contract or start Loop OS.
-

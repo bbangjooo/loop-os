@@ -29,6 +29,7 @@ from typing import Any
 
 import journal
 import note
+from _program import project_progress
 
 CLASS_CLOSURE_THRESHOLD = 3  # REJECTED diagnoses that close a class (old-world rule)
 
@@ -47,6 +48,24 @@ INTERPRETATION_REQUESTS = [
         "id": "frame_misfit",
         "question": "Do the rejections share a commitment that would explain them all if false?",
         "if_judged_yes": "record a `rival_draft` note (prior binding applies if external evidence exists)",
+    },
+]
+
+PROGRAM_INTERPRETATION_REQUESTS = [
+    {
+        "id": "program_alignment",
+        "question": "Does the current frame and next action still serve the pinned program's success evidence?",
+        "if_judged_no": "record an assumption_conflict or rival_draft citing the program and sealed evidence; do not quietly replace the goal",
+    },
+    {
+        "id": "preparation_detour",
+        "question": "Are preparation or learning reports accumulating while a prerequisite for the program outcome remains unresolved?",
+        "if_judged_yes": "name the prerequisite and the smallest outcome-producing next action; do not count more checks as completion",
+    },
+    {
+        "id": "inherited_work",
+        "question": "Have earlier candidates, residuals and required follow-ups been completed or explicitly deferred with evidence?",
+        "if_judged_no": "retain them in remaining work and explain their disposition before starting an unrelated frame",
     },
 ]
 
@@ -110,6 +129,7 @@ def status(project: Path) -> dict[str, Any]:
         "class_states": _class_states(state),
         "notes_by_kind": dict(_count_kinds(notes)),
         "adoptions": len(state.adoptions),
+        "program_progress": project_progress(project, state),
     }
 
 
@@ -148,6 +168,8 @@ def frame_health(project: Path) -> dict[str, Any]:
         "class_states": _class_states(state),
         "margin_trajectory": trajectory,
         "interpretation_requests": INTERPRETATION_REQUESTS,
+        "program_progress": project_progress(project, state),
+        "program_interpretation_requests": PROGRAM_INTERPRETATION_REQUESTS if state.program else [],
         "note": "this packet carries evidence, not verdicts; the reader answers the requests",
     }
 

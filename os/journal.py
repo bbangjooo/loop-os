@@ -154,6 +154,7 @@ class JournalState:
     project_id: str = ""
     lineage: list[dict[str, str]] = field(default_factory=list)
     contract_digest: str | None = None
+    program: dict[str, str] | None = None
     generation: int | None = None
     # spec_digest -> spec_issued event, for specs with no run_sealed/abandoned yet
     pending_runs: dict[str, dict[str, Any]] = field(default_factory=dict)
@@ -187,6 +188,7 @@ def reduce_state(events: list[dict[str, Any]]) -> JournalState:
             if body.get("adoption_ref") in revoked:
                 continue
             state.contract_digest = body["contract_digest"]
+            state.program = body.get("program")
             state.generation = body["generation"]
         elif kind == "spec_issued.v1":
             state.pending_runs[body["spec_digest"]] = event
@@ -350,6 +352,7 @@ def main(argv: list[str] | None = None) -> int:
                 "project_id": state.project_id,
                 "generation": state.generation,
                 "contract_digest": state.contract_digest,
+                "program": state.program,
                 "pending_runs": [e["body"]["spec_digest"] for e in state.pending_runs.values()],
                 "pending_diagnoses": list(state.pending_diagnoses),
                 "runs_sealed": len(state.runs_sealed),

@@ -30,13 +30,20 @@ resolve — inferring what you can, asking the rest **in one batch**:
   one guard that fails when the objective is gamed the obvious way (deleting work,
   weakening a test, shrinking the input).
 - **Budget** — how many iterations may this generation spend, drawn up front and
-  never refunded? Make the user pick a number they can defend, not a comfortable
-  default.
+  never refunded? Reuse an existing authorized budget or delegated decision
+  authority; ask only if the necessary decision is still missing. Record why
+  the chosen budget is defensible rather than inventing an unbounded default.
 
 The program remains stable across generations. The first contract chooses one
 initial frame from its research question and initial frame hints. Later frames
 are successor contracts adopted through `/loop-os:jump`; do not rewrite the
 program merely to make a frame pass.
+
+Start from the program's existing evidence and required follow-ups. Name the
+candidate or unfinished obligation this frame will advance. If choosing a new
+direction instead, record why the inherited work is deferred or rejected.
+Separate user requirements from working assumptions: a precaution introduced by
+the agent is not automatically a new user mandate or approval boundary.
 
 Also settle: `proxy_license` (which of the user's own words license the number as a
 proxy for the real goal — if the number *is* the goal, say so explicitly) and
@@ -61,8 +68,18 @@ thing that measures honestly, reading only committed project state. It goes into
 
 ### 3. Draft `$P/contract.toml`
 
-Follow the README schema. Include `program.md` in `integrity`. Every guard must
-pass on the current commit — run them.
+Follow the README schema. Bind the reviewed program bytes in the contract:
+
+```toml
+[program]
+path = "program.md"
+digest = "<SHA-256 of the exact program.md bytes>"
+```
+
+`aim` adds this path to integrity and emits a digest guard in every stage. A
+program change between registration and aim is refused before a draw; a change
+after aim is caught by the kernel guard. Every application guard must pass on
+the current commit — run them.
 
 ### 4. Review before sealing — do not skip
 
@@ -76,8 +93,12 @@ commands, and ask for a **defect list**, not an opinion:
 - Mechanism is falsifiable — name the observation that would refute it.
 - Guards all pass now, and at least one fails under obvious gaming.
 - **Integrity** pins cover the evaluator and every quietly-rewritable data surface.
-- `program.md` is included in the integrity pins so a running frame cannot
-  silently change the research plan.
+- `[program]` binds the exact reviewed plan. Guards trace to a program constraint
+  or an explicitly justified validity assumption; they do not silently redefine
+  success or turn preparation into the goal.
+- Existing candidates and required follow-ups have an explicit disposition.
+- The diagnosis will report the program criterion, outcome/learning/preparation/
+  no_change delta, remaining work, and the concrete next action.
 - Budget is defensible as a multiple-testing contract.
 
 Fix findings; re-review if the contract changed materially. Report unresolved
@@ -91,5 +112,7 @@ uv run python os/seal.py contract --project $P --contract $P/contract.toml
 
 Only a generation-1 contract (or the same generation re-registered) seals directly —
 a higher generation is refused without a jump adoption, and that path is
-deliberately not this command's job. Report the contract digest, the objective's
+deliberately not this command's job. Once a program is bound, changing or dropping
+that binding also requires an adopted successor; re-registration cannot bypass
+it. Report the contract digest, the objective's
 current value, the drawn budget, and the next command in the cycle.

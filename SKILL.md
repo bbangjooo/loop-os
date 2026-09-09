@@ -27,6 +27,17 @@ Program은 목표·연구 질문·허용 조작·성공 증거·falsifier·제�
 실행 frame을 소유한다. Program을 만들거나 정제하는 interview는 product code,
 contract, journal, kernel을 수정하지 않는다.
 
+새 계약은 `[program]`에 프로젝트 내부 경로 `path`와 원문의 SHA-256 `digest`를
+명시한다. `seal contract`와 `aim`은 실제 파일을 확인하고, `aim`은 모든 stage에
+프로그램 해시 guard를 넣는다. 등록 이후 프로그램을 바꾸어도 예산을 다시 받거나
+성공 기준을 조용히 바꿀 수 없다. 기존 계약에 이 항목이 없으면 그대로 동작하며,
+이미 발행된 run을 먼저 마친 뒤 검토된 후속 계약에서 연결한다.
+
+프로그램에 기존 후보·잔여 신호·필수 후속 작업이 있으면 새로운 주제보다 먼저
+그 처리 상태를 확인한다. 완료·기각·보류의 근거를 남기고, 해결되지 않은 항목을
+진행 보고에서 없애지 않는다. 사용자 요구와 agent가 도입한 작업 가정을 구분한다.
+자료 수집·도구 제작·검사 통과는 준비일 수 있으며 그 자체가 최종 성과는 아니다.
+
 ## 절대 규칙
 
 1. `.journal/events.jsonl`을 직접 쓰지 않는다. 계기만 append한다. (수정하면 hash
@@ -70,15 +81,18 @@ contract, journal, kernel을 수정하지 않는다.
      --ledger $P/.git/experiment-loop/<loop_id>/ledger.jsonl [--trials <trials.jsonl>]
 7. 진단 파일 저작 (아래 형식) → uv run python os/seal.py diagnosis --project $P --file <진단.json>
 8. 관찰이 있으면 note 저작 → uv run python os/note.py --project $P --kind <kind> --body <파일> [--refs ...]
-9. uv run python os/steer.py frame-health --project $P   # interpretation_requests 3개에 답한다:
-   yes로 판단한 항목은 지시된 note kind로 기록한다 (stagnation→anomaly,
-   assumption_misfit→assumption_conflict, frame_misfit→rival_draft)
+9. uv run python os/steer.py frame-health --project $P   # frame 및 program 해석 요청에 답한다:
+   각 if_judged_yes/no 조건에 따라 지시된 행동을 하고 note kind가 있으면 기록한다
+   (stagnation→anomaly, assumption_misfit→assumption_conflict, frame_misfit→rival_draft)
 10. uv run python os/memory.py extract --project $P      # 진단을 claim으로 증류
 11. uv run python os/journal.py anchor --project $P → .journal-anchor.json 커밋
 12. 2로 돌아간다
 ```
 
 세션이 죽어도 상태는 파일이 전부다: 새 세션은 1→2만 실행하면 정확히 이어받는다.
+수기 상태 문서가 오래되면 journal 기반 출력이 우선이다. `steer status`와
+`frame-health`의 `program_progress`에서 최신 기준·변화·남은 작업·다음 행동을 읽는다.
+기존 `next_required`는 절차상의 다음 단계이지 프로그램 성공 판정이 아니다.
 
 ## aim 거부 코드별 대응
 
@@ -184,6 +198,31 @@ run의 증거(summary, ledger, agent 로그)를 읽고 저작한다. 모든 필�
   "next_question": "이 결과가 여는 다음 질문"
 }
 ```
+
+`[program]`에 연결된 spec의 진단에는 다음 블록도 필수다. `evidence_refs`는 이
+진단의 run seal event id를 포함하는 기존 journal event id 목록이다. `criterion`은
+프로그램의 실제 성공 증거 항목을 가리키고, `delta`는 그 항목이 얼마나 변했는지
+또는 아직 변하지 않았는지를 쓴다. `remaining`은 빈 목록일 수 있지만 자동 완료를
+뜻하지 않는다. 새 프로그램 연결 이전의 run·migrated run에는 소급 요구하지 않는다.
+
+```json
+{
+  "program_progress": {
+    "kind": "preparation",
+    "criterion": "program.md / Success Evidence: 실제로 사용할 수 있는 결과",
+    "delta": "입력 검사 도구는 완성했지만 사용할 수 있는 결과는 아직 0개",
+    "evidence_refs": ["ev-실제-run-seal-id"],
+    "remaining": ["기존 후보 재검증", "비교 기준선 확보"],
+    "next_action": "완성한 검사 도구로 기존 후보의 재검증을 마친다"
+  }
+}
+```
+
+`kind`는 `outcome`(프로그램 결과), `learning`(가설 판단을 바꾸는 근거),
+`preparation`(준비), `no_change`(변화 없음) 중 하나다. 이것은 저자의 판단이며,
+OS는 형식과 증거 연결을 확인할 뿐 의미를 인증하지 않는다. 미보고는 변화 없음이
+아니라 미확인이다. `SUPPORTED`나 `outcome` 선언 수로 최종 완료를 판정하지 않는다.
+사용자 보고는 프로그램 성과와 준비·학습을 먼저 구분하고 frame 지표·예산을 덧붙인다.
 
 `VALIDATED`라는 단어는 이 시스템의 어휘가 아니다. 진짜 판정(forward window 등)은
 OS 밖에서 1회 일어나며, 여기의 verdict는 run 단위 가설 판정일 뿐이다.

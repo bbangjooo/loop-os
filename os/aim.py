@@ -1,14 +1,14 @@
 """aim: turn a contract plus the journal into one kernel spec.
 
-The only path from research intent to kernel execution. Reads exactly two
-inputs — contract.toml and the journal — and emits exactly two outputs — a
+The only path from research intent to kernel execution. Reads contract.toml
+and the journal, verifies any bound program's bytes, and emits two outputs — a
 spec.yaml the kernel can run, and one spec_issued journal event. Notes,
 claims, and any other advisory material never enter this function except via
 an adopted successor contract (design §2.3, consumer rule).
 
 Fail-closed refusal ladder, in order:
     R1 journal not bootstrapped / chain broken
-    R2 contract not registered, or the file drifted since registration
+    R2 contract not registered, or the contract/bound program drifted
     R3 an issued spec has no sealed (or abandoned) run yet
     R4 a sealed run has no sealed diagnosis yet
     R5 the generation budget cannot cover this spec's draw
@@ -33,6 +33,7 @@ from typing import Any
 import yaml
 
 import journal
+import _program
 from _canon import digest_file
 
 CONTRACT_SCHEMA = "ros2-contract-v1"
@@ -44,7 +45,7 @@ GUARD_KINDS = ("exit_zero", "unchanged_output", "non_decreasing_number", "non_in
 NUMERIC_GUARD_KINDS = ("non_decreasing_number", "non_increasing_number")
 ON_INCOMPLETE = ("stop", "continue")
 
-_CONTRACT_KEYS = {"schema", "project", "core", "frame", "budget", "agent", "integrity", "revert", "stages"}
+_CONTRACT_KEYS = {"schema", "project", "program", "core", "frame", "budget", "agent", "integrity", "revert", "stages"}
 _PROJECT_KEYS = {"id", "name"}
 _FRAME_KEYS = {"generation", "class", "mechanism"}
 _BUDGET_KEYS = {"iterations_total"}
@@ -99,6 +100,12 @@ def load_contract(path: Path) -> dict[str, Any]:
 
     project = _require_mapping(raw.get("project"), _PROJECT_KEYS, "project")
     _require_text(project.get("id"), "project.id")
+
+    if "program" in raw:
+        try:
+            _program.validate_declaration(raw["program"])
+        except ValueError as error:
+            raise ContractError(str(error)) from error
 
     frame = _require_mapping(raw.get("frame"), _FRAME_KEYS, "frame")
     if not isinstance(frame.get("generation"), int) or frame["generation"] < 1:
@@ -165,6 +172,8 @@ def load_contract(path: Path) -> dict[str, Any]:
             gwhere = f"{where}.guards[{gindex}]"
             _require_mapping(guard, _GUARD_KEYS, gwhere)
             _require_text(guard.get("id"), f"{gwhere}.id")
+            if "program" in raw and guard["id"] == _program.GUARD_ID:
+                raise ContractError(f"{gwhere}.id is reserved for the program digest guard")
             _require_argv(guard.get("command"), f"{gwhere}.command")
             if guard.get("kind") not in GUARD_KINDS:
                 raise ContractError(f"{gwhere}.kind must be one of {GUARD_KINDS}")
@@ -185,6 +194,9 @@ def build_spec(contract: dict[str, Any], loop_id: str, contract_path: Path, proj
     contract_rel = contract_path.resolve().relative_to(project.resolve())
     if str(contract_rel) not in pins:
         pins.append(str(contract_rel))
+    program = contract.get("program")
+    if program and program["path"] not in pins:
+        pins.append(program["path"])
     stages = []
     for stage in contract["stages"]:
         objective = {k: v for k, v in stage["objective"].items() if k != "proxy_license"}
@@ -194,8 +206,11 @@ def build_spec(contract: dict[str, Any], loop_id: str, contract_path: Path, proj
             "budget": {"iterations": stage["iterations"]},
             "prompt": stage["prompt"],
         }
-        if stage.get("guards"):
-            entry["guards"] = stage["guards"]
+        guards = list(stage.get("guards", []))
+        if program:
+            guards.append(_program.digest_guard(program))
+        if guards:
+            entry["guards"] = guards
         if stage.get("integrity"):
             entry["integrity"] = stage["integrity"]
         if stage.get("on_incomplete"):
@@ -231,6 +246,13 @@ def issue(project: Path, contract_path: Path | None = None) -> dict[str, Any]:
             "R2_CONTRACT",
             "contract drifted since registration; re-register it or restore the registered text",
         )
+
+    try:
+        _program.check_binding(project, contract.get("program"))
+        if state.program != contract.get("program"):
+            raise ValueError("registered program binding differs from the contract; review and register it")
+    except ValueError as error:
+        raise AimRefusal("R2_CONTRACT", str(error)) from error
 
     # R3 — every issued spec must be sealed or abandoned before the next aim.
     if state.pending_runs:
@@ -276,6 +298,7 @@ def issue(project: Path, contract_path: Path | None = None) -> dict[str, Any]:
             "class": contract["frame"]["class"],
             "proxy_licenses": [s["objective"]["proxy_license"] for s in contract["stages"]],
             "draw": draw,
+            **({"program": program} if (program := contract.get("program")) else {}),
         },
     )
     return {

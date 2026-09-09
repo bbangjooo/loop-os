@@ -48,6 +48,14 @@ statement = "delegate Loop OS autonomy to the agent"
 granted_at = "2026-08-25T00:00:00Z"
 ```
 
+Full-auto does not turn preparation into completion. Program-bound contracts
+require a `program_progress` block in each newly issued run's diagnosis; see
+[the binding and progress contract](program-progress.md). A reported `outcome`
+is an author declaration, not an OS verdict that the external goal is achieved.
+Use the frame-health program questions to catch preparation detours, unresolved
+prerequisites and forgotten inherited work. Changes to `[program]` use the
+existing constitutional approval path, even when `[core]` text stays unchanged.
+
 The equivalent instrument-managed forward path is:
 
 ```bash

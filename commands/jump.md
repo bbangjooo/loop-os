@@ -2,6 +2,12 @@
 description: Run one full Loop OS jump — rival draft, dossier, successor, blind review, approval tier, adopt, seal.
 ---
 
+Keep the program's outcome and inherited obligations in view when choosing the
+successor. A new topic is not evidence that earlier required work was completed.
+Preserve `[program]` exactly for ordinary jumps. Adding, changing or removing
+the binding is constitutional and uses the existing human/full-auto approval
+path. Keep old program versions available while their runs await diagnosis.
+
 Read `os/autonomy.py status --project $P` first. In governed mode, run exactly one
 frame transition and report. In config-driven full-auto mode, complete the jump,
 register the successor, and return immediately to the continuous cycle; a jump is

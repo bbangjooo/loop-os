@@ -55,6 +55,7 @@ from typing import Any
 
 import autonomy
 import journal
+import _program
 from aim import ContractError, load_contract
 from steer import CLASS_CLOSURE_THRESHOLD
 from _canon import canonical_json, digest_bytes, digest_file
@@ -187,6 +188,11 @@ def _verify_auto_grant(
             "successor changes [core]; that is a constitutional jump — "
             "human approval.json (approved_by, statement) required"
         )
+    if canonical_json(successor.get("program")) != canonical_json(current.get("program")):
+        raise JumpError(
+            "successor changes [program]; changing or removing the durable program binding "
+            "is constitutional — human or full-auto approval required"
+        )
     if successor["project"]["id"] != current["project"]["id"]:
         raise JumpError("successor changes project.id; human approval required")
     if successor["budget"]["iterations_total"] > current["budget"]["iterations_total"]:
@@ -279,6 +285,10 @@ def adopt(
         successor = load_contract(successor_path)
     except ContractError as error:
         raise JumpError(f"successor contract invalid: {error}") from error
+    try:
+        _program.check_binding(project, successor.get("program"))
+    except ValueError as error:
+        raise JumpError(str(error)) from error
     successor_generation = successor["frame"]["generation"]
     if state.generation is not None and successor_generation != state.generation + 1:
         raise JumpError(

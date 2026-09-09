@@ -33,18 +33,25 @@ The pass:
    $P/.git/experiment-loop/<loop_id>/ledger.jsonl` — if the run declared
    `offline_evals=N`, seal with `--declared-evals N`.
 7. Author the diagnosis file in the SKILL.md format — verdict, what moved, mechanism,
-   counterfactual, next question — then
+   counterfactual, next question, and `program_progress` for a program-bound run — then
    `uv run python os/seal.py diagnosis --project $P --file <diagnosis.json>`.
    Write what the evidence supports, including REJECTED. A generation that never
    rejects is a generation that never measured anything.
-8. `uv run python os/steer.py frame-health --project $P` — answer all three
-   interpretation requests, recording each `yes` as the note kind it names.
+8. `uv run python os/steer.py frame-health --project $P` — answer the frame and
+   program interpretation requests using the evidence. Distinguish improvement
+   in the frame's scalar from the program outcome. Keep unresolved inherited
+   work and blocking prerequisites visible before choosing another experiment.
+   Follow each request's `if_judged_yes` or `if_judged_no` instruction; record a
+   note when a note kind is named.
 9. `uv run python os/memory.py extract --project $P`.
 10. `uv run python os/journal.py anchor --project $P`, then commit
     `.journal-anchor.json`.
 
-Then report to the user in a few sentences: the verdict, the objective before and
-after, iterations drawn and left in the generation, and the next required action.
+Then report to the user in a few sentences: what changed toward the program's
+success evidence, what was only preparation or learning, what remains, and the
+next concrete action. Include the frame verdict, objective before/after and
+budget as supporting facts. Tests, new tools, collected files and consumed
+iterations do not by themselves establish the external outcome.
 If the generation's budget is now spent or the hypothesis class has three REJECTED
 diagnoses, say so — the next move is a jump. Run it yourself, as its own pass
 (`/loop-os:jump`), right after reporting: an ordinary jump (the successor keeps the

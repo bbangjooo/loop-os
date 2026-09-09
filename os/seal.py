@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any
 
 import journal
+import _program
 from aim import CONTRACT_NAME, ContractError, load_contract
 from _canon import digest_file
 
@@ -42,6 +43,10 @@ def seal_contract(project: Path, contract_path: Path | None = None) -> dict[str,
     project = project.resolve()
     contract_path = (contract_path or project / CONTRACT_NAME).resolve()
     contract = load_contract(contract_path)
+    try:
+        _program.check_binding(project, contract.get("program"))
+    except ValueError as error:
+        raise SealError(str(error)) from error
     contract_digest = digest_file(contract_path)
     state = journal.replay(project)
     if state.contract_digest == contract_digest:
@@ -51,6 +56,12 @@ def seal_contract(project: Path, contract_path: Path | None = None) -> dict[str,
     # a state machine).
     generation = contract["frame"]["generation"]
     adoption_ref = None
+    if (state.program is not None and state.program != contract.get("program")
+            and state.generation is not None and generation <= state.generation):
+        raise SealError(
+            "changing or dropping the registered program requires an adopted successor generation "
+            "(os/jump.py adopt); same-generation registration cannot replace it"
+        )
     if state.generation is not None and generation > state.generation:
         adopted = next(
             (
@@ -78,6 +89,7 @@ def seal_contract(project: Path, contract_path: Path | None = None) -> dict[str,
             "contract_digest": contract_digest,
             "generation": contract["frame"]["generation"],
             "class": contract["frame"]["class"],
+            **({"program": program} if (program := contract.get("program")) else {}),
             **({"adoption_ref": adoption_ref} if adoption_ref else {}),
         },
     )
@@ -166,6 +178,8 @@ def seal_run(
         body["declared_evaluations"] = declared_evaluations
     if issued is not None:
         body["spec_issued_id"] = issued["event_id"]
+        if issued_body.get("program"):
+            body["program"] = issued_body["program"]
     if trials_path is not None:
         body["trials_path"] = str(trials_path)
         body["trials_digest"] = digest_file(trials_path)
@@ -231,6 +245,17 @@ def seal_diagnosis(project: Path, file_path: Path, run_seal_id: str | None = Non
         raise SealError(f"run seal {run_seal_id!r} is not awaiting a diagnosis")
 
     run_event = state.pending_diagnoses[run_seal_id]
+    # Bind to the program at issuance, never whatever contract is current now.
+    program = run_event["body"].get("program")
+    if program:
+        try:
+            _program.check_binding(project, program)
+            _program.validate_progress(
+                diagnosis.get("program_progress"), run_seal_id,
+                {e["event_id"] for e in state.events},
+            )
+        except ValueError as error:
+            raise SealError(str(error)) from error
     event = journal.append_event(
         project,
         "diagnosis_sealed.v1",
@@ -242,6 +267,7 @@ def seal_diagnosis(project: Path, file_path: Path, run_seal_id: str | None = Non
             "diagnosis_path": str(file_path),
             "diagnosis_digest": digest_file(file_path),
             "verdict": verdict,
+            **({"program": program, "program_progress": diagnosis["program_progress"]} if program else {}),
         },
     )
     return {"status": "DIAGNOSIS_SEALED", "event_id": event["event_id"], "verdict": verdict}

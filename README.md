@@ -53,6 +53,9 @@ The next step is:
 
 `contract.toml` is derived from `program.md` and represents only the current
 execution frame. The program remains stable while `jump` replaces frames.
+New contracts bind its exact bytes with `[program]` (`path` and SHA-256 `digest`).
+This is optional for compatibility with existing contracts, but the contract
+builder includes it for new programs. See [program progress](docs/program-progress.md).
 
 ### 1. See it work
 
@@ -89,6 +92,14 @@ Runs the same kernel twice on the same 12-stop routing problem — once bare, on
 ```
 
 `aim` is fail-closed. It refuses — with a code that names the missing input — when the journal is broken (`R1`), the contract drifted since registration (`R2`), a run is unsealed (`R3`), a diagnosis is missing (`R4`), or the generation budget can't cover the draw (`R5`). The refusal *is* the workflow: fix the named input and aim again, which is exactly what the cycle command does.
+
+For program-bound runs, diagnoses also distinguish **outcome**, **learning**,
+**preparation**, and **no_change** against a named program criterion. `steer
+status` and `frame-health` expose the sealed declarations, unresolved work and
+next action alongside the frame's numeric trajectory. More tests, collected
+files or successful iterations can be useful preparation without producing the
+result the user asked for. These reports do not certify completion; the
+application's full success evidence still decides that.
 
 ### 4. Jump when the frame dies
 
