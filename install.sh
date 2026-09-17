@@ -97,8 +97,8 @@ if [ -z "$installed_skill" ]; then
     info "  cp $LOOP_OS_HOME/skills/deep-interview/SKILL.md ~/.claude/skills/loop-os-deep-interview/SKILL.md"
 fi
 
-info "Verifying (OS + kernel + benchmark gate)"
-(cd "$LOOP_OS_HOME" && uv run python -m pytest tests/ kernel/tests/ bench/ -q) \
+info "Verifying (OS + kernel + benchmark + cafe example)"
+(cd "$LOOP_OS_HOME" && uv run python -m pytest tests/ kernel/tests/ bench/ examples/cafe-queue/ -q) \
     || fail "Test suite failed — the checkout is not healthy."
 
 info "Done. Loop OS is at $LOOP_OS_HOME"

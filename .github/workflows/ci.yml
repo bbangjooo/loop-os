@@ -22,3 +22,5 @@ jobs:
         run: uv run python -m pytest bench/ -q
       - name: Measurement smoke (scripted baseline, governance floors)
         run: uv run python bench/run.py --agent scripted
+      - name: Cafe example (deterministic, no model calls)
+        run: uv run python -m pytest examples/cafe-queue/test_cafe.py -q

@@ -74,6 +74,11 @@ Runs the same kernel twice on the same 12-stop routing problem — once bare, on
 
 ### 2. Bootstrap your own project
 
+For a small recurring search comparison, see [Cafe queue](examples/cafe-queue/README.md).
+It supplies a seeded scheduling task, automatic validity checks, a free FIFO demo
+and a bounded two-session comparison of the added frame-exploration instructions.
+The full Loop OS lifecycle remains demonstrated by the delivery-round example.
+
 ```
 /loop-os:program   the test suite takes 40 minutes; I want it under 10 without losing coverage
 /loop-os:bootstrap
