@@ -15,7 +15,13 @@ If `$P/.journal/` does not exist, say so and offer to run the bootstrap command
 first — a contract can be drafted without a journal, but it cannot be sealed into
 one that doesn't exist.
 
-### 1. Translate the program into the four contract questions
+### 1. Explore frames, then translate the selected mechanism
+
+Read and apply `__LOOP_OS_HOME__/references/frame-exploration.md` before choosing
+the initial frame. Record the baseline and bounded candidate pass, then compare
+and select. Use a draft file before bootstrap; once the journal exists, seal the
+comparison as an `idea`. A null selection leaves the contract unsealed with the
+missing evidence named. Do not execute candidate experiments during this step.
 
 Read `program.md`, the repo (README, tests, existing metrics scripts), then
 resolve — inferring what you can, asking the rest **in one batch**:
@@ -35,7 +41,7 @@ resolve — inferring what you can, asking the rest **in one batch**:
   the chosen budget is defensible rather than inventing an unbounded default.
 
 The program remains stable across generations. The first contract chooses one
-initial frame from its research question and initial frame hints. Later frames
+initial frame from the compared candidates and its research question. Later frames
 are successor contracts adopted through `/loop-os:jump`; do not rewrite the
 program merely to make a frame pass.
 
@@ -76,6 +82,10 @@ path = "program.md"
 digest = "<SHA-256 of the exact program.md bytes>"
 ```
 
+Before sealing, include `# exploration: <note-id>; selected: <candidate-id>` as
+a TOML comment referring to the sealed comparison. Match the frame mechanism and
+first stage to the selected experiment. This is provenance, not a new schema field.
+
 `aim` adds this path to integrity and emits a digest guard in every stage. A
 program change between registration and aim is refused before a draw; a change
 after aim is caught by the kernel guard. Every application guard must pass on
@@ -85,8 +95,8 @@ the current commit — run them.
 
 The contract is the one artifact nothing else in the system re-checks: runs are
 sealed against it, diagnoses are judged against it, and the jump path reviews only
-its successor. Dispatch a subagent with the draft, the evaluator, and the guard
-commands, and ask for a **defect list**, not an opinion:
+its successor. Dispatch a subagent with the draft, the evaluator, the guard
+commands, and the digest-verified exploration note body/id. Ask for a **defect list**:
 
 - Objective command prints one number on its last line, on the current commit.
 - `proxy_license` names a real licensing clause rather than restating the objective.
@@ -97,6 +107,10 @@ commands, and ask for a **defect list**, not an opinion:
   or an explicitly justified validity assumption; they do not silently redefine
   success or turn preparation into the goal.
 - Existing candidates and required follow-ups have an explicit disposition.
+- Apply the frame-exploration review checklist: candidate mechanisms are distinct,
+  transfers state correspondences and break conditions, source/novelty uncertainty
+  is explicit, and the selected experiment matches the contract. Alternatives and
+  selection reasons must be present, including failure inversion and search limits.
 - The diagnosis will report the program criterion, outcome/learning/preparation/
   no_change delta, remaining work, and the concrete next action.
 - Budget is defensible as a multiple-testing contract.

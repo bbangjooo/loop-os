@@ -45,6 +45,8 @@ install_skill() {
     harness_name="$1"; skill_dir="$2"
     mkdir -p "$skill_dir"
     cp "$LOOP_OS_HOME/SKILL.md" "$skill_dir/SKILL.md"
+    mkdir -p "$skill_dir/references"
+    cp "$LOOP_OS_HOME/references/frame-exploration.md" "$skill_dir/references/frame-exploration.md"
     info "Installed skill for $harness_name -> $skill_dir/SKILL.md"
     installed_skill="yes"
 }
@@ -90,6 +92,8 @@ if [ -z "$installed_skill" ]; then
     info "No agent harness found (~/.claude or ~/.codex). Skill not installed."
     info "After installing a harness, copy it yourself:"
     info "  cp $LOOP_OS_HOME/SKILL.md ~/.claude/skills/loop-os/SKILL.md"
+    info "  mkdir -p ~/.claude/skills/loop-os/references"
+    info "  cp $LOOP_OS_HOME/references/frame-exploration.md ~/.claude/skills/loop-os/references/"
     info "  cp $LOOP_OS_HOME/skills/deep-interview/SKILL.md ~/.claude/skills/loop-os-deep-interview/SKILL.md"
 fi
 

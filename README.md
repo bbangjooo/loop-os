@@ -84,6 +84,15 @@ Runs the same kernel twice on the same 12-stop routing problem — once bare, on
 - Creates the journal, then feeds `program.md` to the **contract builder** (`/loop-os:contract`, also standalone): it turns the research plan into the four contract questions — objective, falsifiable mechanism, guards, budget — writes the evaluator if no command prints the number yet, and has the draft independently reviewed against a defect checklist before sealing. The contract is the one artifact nothing else in the system re-checks, so the review happens before the seal, not after.
 - What comes out looks like the example's [gen1.toml](examples/delivery-round/contracts/gen1.toml).
 
+Before selecting an initial or successor frame, the agent follows the
+[frame exploration procedure](references/frame-exploration.md): baseline and
+structural formulation, near/far search, analogy-first and method-first routes,
+a recorded random cue, assumption inversion and failure inversion. It generates
+before comparing, then records alternatives, transfer limits, falsifiers and a
+smallest discriminating experiment. The existing `idea`/`rival_draft` notes carry
+the comparison into independent review. This guides candidate generation; it does
+not mechanically certify novelty or increase the experiment budget.
+
 ### 3. Run cycles
 
 ```

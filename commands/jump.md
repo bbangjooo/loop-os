@@ -55,9 +55,16 @@ The pass:
    frame-shopping, not research.
 2. **Residual.** `uv run python os/steer.py residual --project $P` — the rejected
    mechanisms of the closing class. The rival must answer this list, not ignore it.
-3. **Rival draft.** Author a `rival_draft` note (`os/note.py`) with
-   commitment_rejected / proposed_frame / mechanism / falsifier. Prior binding: if
-   any `external_evidence` notes exist, cite their ids in `--refs`.
+3. **Explore and draft the rival.** Apply
+   `__LOOP_OS_HOME__/references/frame-exploration.md` to the residual, program and
+   sealed evidence. A spent budget may leave `closed_classes` empty: use the
+   actual diagnoses and budget evidence without inventing three rejections.
+   Generate candidates before comparing them; select a mechanism and smallest
+   discriminating experiment. If none is usable, record the gap without adopting.
+   Author a `rival_draft` note (`os/note.py`) with commitment_rejected /
+   proposed_frame / mechanism / falsifier and the **entire finalized comparison**
+   under `exploration`. Prior binding: if any `external_evidence` notes exist,
+   cite their ids directly in `--refs`; an idea-note reference is insufficient.
 4. **Dossier.** `uv run python os/steer.py dossier --project $P --rival <note_id>`,
    saved to a file.
 5. **Successor contract.** Author it at its **own path** (e.g.
@@ -74,6 +81,10 @@ The pass:
    `{"reviewer": "<model/route>", "independent": true, "verdict": "PASS"|"FAIL",
    "notes": ...}`. On FAIL, fix the successor and re-run the review; never edit
    the verdict.
+   The dossier's `rival_draft.body.exploration` is the finalized candidate record,
+   not drafting history. Apply the exploration review checklist, including
+   selection versus alternatives, transfer failures, original goal preservation
+   and consistency between the selected experiment and successor contract.
 7. **Approval.** Decide the tier as above — author the ordinary auto file, use
    the structured full-auto decision when an enabled grant exists, or stop for
    the human in default mode. When in doubt, it is constitutional.

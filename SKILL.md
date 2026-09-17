@@ -70,7 +70,7 @@ contract, journal, kernel을 수정하지 않는다.
 0. (최초 1회) `/loop-os:program` → `$P/program.md` 작성
    `program.md`를 검토·commit한 뒤:
    uv run python os/journal.py bootstrap --project $P --project-id ID [--lineage name=digest ...]
-   계약 저작 → uv run python os/seal.py contract --project $P --contract $P/<계약경로>
+   아래 Frame exploration → commands/contract.md의 계약·독립 리뷰·봉인 절차
 0.5. uv run python os/autonomy.py status --project $P  # config-driven autonomy mode 확인
 1. uv run python os/journal.py verify --project $P    # 기본: 깨지면 사용자 보고. full-auto: 아래 복구 절차
 2. uv run python os/journal.py status --project $P    # next_required가 다음 행동을 지시한다
@@ -232,7 +232,7 @@ OS 밖에서 1회 일어나며, 여기의 verdict는 run 단위 가설 판정일
 | kind | 요건 |
 | --- | --- |
 | observation / anomaly / assumption_conflict | signal-bearing — `--refs`에 증거(이벤트 id/digest) 필수 |
-| idea | 자유 |
+| idea | 자유; 최초 frame의 후보 비교·선택 기록도 이 kind로 봉인 |
 | external_evidence | summary/source_locator/snapshot_digest/claims/limitations 전부. OS는 fetch하지 않는다 — 검색은 네가 밖에서 하고 digest만 들어온다 |
 | rival_draft | commitment_rejected/proposed_frame/mechanism/falsifier. external_evidence가 하나라도 있으면 prior binding — refs에 external_evidence id 인용 필수 |
 
@@ -245,11 +245,11 @@ full-auto config가 있으면 agent가 구조화된 승인을 저작한다:
 
 ```
 1. uv run python os/steer.py residual --project $P     # 닫힌 class의 기각 mechanism 목록 + 과제
-2. rival_draft note 저작 (prior binding 준수)
+2. 아래 Frame exploration → 비교 기록 전체를 exploration 필드에 담은 rival_draft 봉인 (prior binding 준수)
 3. uv run python os/steer.py dossier --project $P --rival <note_id> → 파일로 저장
 4. successor contract 저작 (generation = 현재 + 1, [core]는 그대로 복사)
 5. 독립 리뷰: 별도 컨텍스트의 blind subagent(가능하면 다른 모델 라우트)가 dossier와
-   successor contract 두 파일만 보고 저작한 review.json
+   successor contract 두 파일만 보고 후보 비교·선택과 계약의 일치까지 검토한 review.json
    {"reviewer": ..., "independent": true, "verdict": "PASS", "notes": ...}
 6. 승인 — 2단계:
    · ordinary jump: approval.json {"mode": "auto", "basis": "core-preserved"} —
@@ -284,6 +284,19 @@ successor는 등록 contract와 **다른 경로**에 저작하라 — 등록된 
 `uv run python os/jump.py revoke --project $P --adoption <adoption event id> --reason "..."`.
 revoke는 그 채택을 인용한 등록까지 replay에서 무효화하고 frame을 직전 등록으로 되돌린다.
 예산이 이미 인출됐으면 revoke는 거부된다 — 그때는 새 jump만이 정직한 경로다.
+
+## Frame exploration
+
+최초 contract의 frame 선택 전, `residual → rival_draft` 사이, 또는 frame-health의
+제안을 rival로 구체화할 때 [후보 탐색 절차](references/frame-exploration.md)를 읽고
+실행한다. 일반 cycle의 매 iteration마다 반복하지 않는다. 기존 해법과 병목에서
+출발해 추상화·근거리/원거리·구조적 유추·analogy-first·method-first·무작위 단서·
+전제 뒤집기·실패 역산으로 후보를 만들고, 생성 뒤 별도로 비교·선택한다.
+
+기록은 기존 `idea`/`rival_draft`를 사용한다. 선택된 후보뿐 아니라 대안·탈락 이유·
+전이 실패 조건·최소 반증 실험을 독립 리뷰에 전달한다. 실제 평가는 기존 계약과
+계기 예산을 따른다. 새로운 후보를 생각해냈다는 사실은 jump 승인이나 성능 증거가
+아니다. 기록의 의미·탐색 다양성은 agent와 reviewer가 판단하며 계기는 인증하지 않는다.
 
 ## 경계
 
