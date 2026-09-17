@@ -1,0 +1,1126 @@
+{
+  "manifest": {
+    "schema": "cafe-search-ablation-v3",
+    "seed": 1,
+    "eval_budget": 12,
+    "train_seeds": [
+      577090037,
+      271041745,
+      1095513148,
+      506456969,
+      2127877499,
+      1930549411,
+      2028277857,
+      1630434966
+    ],
+    "holdout_seeds": [
+      901749037,
+      403123852,
+      2095328386,
+      121751464,
+      1674216077,
+      1858720390,
+      9045414,
+      1912923437,
+      1143881027,
+      982526257,
+      439062303,
+      1363349907,
+      131383004,
+      95872739,
+      109289145,
+      39534911,
+      1637259727,
+      930287327,
+      1812976885,
+      124729223,
+      952158461,
+      1880712864,
+      2129497364,
+      1001090105,
+      1484771968,
+      991564255,
+      939657385,
+      1973981844,
+      1244602538,
+      92297589,
+      1787479226,
+      429497919,
+      798461319,
+      1272987056,
+      519218416,
+      1428914934,
+      1812935769,
+      815398389,
+      1302957853,
+      1220455187,
+      2144743702,
+      1689440956,
+      148287319,
+      2062559164,
+      1042560227,
+      1736404157,
+      1779465077,
+      743061144,
+      1576784849,
+      1609337231,
+      371375481,
+      1885325846,
+      463561237,
+      703078820,
+      1689017785,
+      1591382744,
+      2103217660,
+      127023494,
+      2015714664,
+      186776492,
+      1325123798,
+      1690497763,
+      731644238,
+      724106992
+    ],
+    "reference_sha256": "f37c5c48b8b6c6337fa6796a325034300a7ae7889bde2f63ca5d8aa18b10e844",
+    "source_sha256": {
+      "cafe.py": "0f3143eea7ff7115693aa871e947e0b6234868db5d9cd7911149e529a702af41",
+      "objective.py": "d06c9ebb6a1a6a6fee804ba68ffefe8bf9c6cb9b9150eb56d2f92a675ffe61d9",
+      "policy.py": "ed2ce00e63c1751ded473b429614ea51648d06000c3c3725c623c48e1361cffd"
+    },
+    "runner_sha256": "92badb263b9cf6476c046bd014d900e5f3d7b3edc3fa896cb0b8043e4f607448",
+    "tools_sha256": "a45f343004c56955017e6d52d18d16eb8ee9ddda6106cdd81db15167cf462aba",
+    "protected_hashes": {
+      "control": {
+        "objective.py": "d06c9ebb6a1a6a6fee804ba68ffefe8bf9c6cb9b9150eb56d2f92a675ffe61d9",
+        "config.json": "731925d68a40cac30129608d02c78c07d5ccf29b8175129ab23551d91859f2e4",
+        "orders.json": "db73a79a1b066d755aaa62f3eff8f880671aa623a58274245c2938c15a4bc8d9",
+        "TASK.md": "f65e89fce3285ba45fc60c4dcbe3ef3f1a85b56b5da544e9c5a4b6390b274550",
+        "baseline.json": "b80812faf425701f3a007b3cf96c0df0fe56e006fb9aaa91a03d26727c2235ce"
+      },
+      "exploration": {
+        "objective.py": "d06c9ebb6a1a6a6fee804ba68ffefe8bf9c6cb9b9150eb56d2f92a675ffe61d9",
+        "config.json": "731925d68a40cac30129608d02c78c07d5ccf29b8175129ab23551d91859f2e4",
+        "orders.json": "db73a79a1b066d755aaa62f3eff8f880671aa623a58274245c2938c15a4bc8d9",
+        "TASK.md": "965f610dae8e293241491cb755e94282a2606652f2b4bec5347226cf76701ef0",
+        "baseline.json": "b80812faf425701f3a007b3cf96c0df0fe56e006fb9aaa91a03d26727c2235ce"
+      }
+    },
+    "study": "search-instruction ablation, not full outer-loop comparison",
+    "session_limits": {
+      "requested_model": null,
+      "usd_per_arm": 2.0,
+      "timeout_seconds": 600,
+      "effort": "low"
+    },
+    "claude_version": "2.1.245 (Claude Code)"
+  },
+  "fifo_holdout": {
+    "valid": true,
+    "mean_wait": 35.397135416666664,
+    "p95_wait": 66,
+    "max_wait": 89,
+    "orders": 768,
+    "per_day": [
+      {
+        "seed": 901749037,
+        "mean_wait": 37.083333333333336
+      },
+      {
+        "seed": 403123852,
+        "mean_wait": 28.5
+      },
+      {
+        "seed": 2095328386,
+        "mean_wait": 35.833333333333336
+      },
+      {
+        "seed": 121751464,
+        "mean_wait": 39.25
+      },
+      {
+        "seed": 1674216077,
+        "mean_wait": 39.916666666666664
+      },
+      {
+        "seed": 1858720390,
+        "mean_wait": 26.25
+      },
+      {
+        "seed": 9045414,
+        "mean_wait": 35.916666666666664
+      },
+      {
+        "seed": 1912923437,
+        "mean_wait": 33.5
+      },
+      {
+        "seed": 1143881027,
+        "mean_wait": 30.0
+      },
+      {
+        "seed": 982526257,
+        "mean_wait": 46.916666666666664
+      },
+      {
+        "seed": 439062303,
+        "mean_wait": 34.75
+      },
+      {
+        "seed": 1363349907,
+        "mean_wait": 37.333333333333336
+      },
+      {
+        "seed": 131383004,
+        "mean_wait": 27.333333333333332
+      },
+      {
+        "seed": 95872739,
+        "mean_wait": 31.583333333333332
+      },
+      {
+        "seed": 109289145,
+        "mean_wait": 38.166666666666664
+      },
+      {
+        "seed": 39534911,
+        "mean_wait": 40.916666666666664
+      },
+      {
+        "seed": 1637259727,
+        "mean_wait": 33.833333333333336
+      },
+      {
+        "seed": 930287327,
+        "mean_wait": 37.916666666666664
+      },
+      {
+        "seed": 1812976885,
+        "mean_wait": 35.666666666666664
+      },
+      {
+        "seed": 124729223,
+        "mean_wait": 43.5
+      },
+      {
+        "seed": 952158461,
+        "mean_wait": 40.083333333333336
+      },
+      {
+        "seed": 1880712864,
+        "mean_wait": 41.083333333333336
+      },
+      {
+        "seed": 2129497364,
+        "mean_wait": 31.083333333333332
+      },
+      {
+        "seed": 1001090105,
+        "mean_wait": 34.916666666666664
+      },
+      {
+        "seed": 1484771968,
+        "mean_wait": 38.583333333333336
+      },
+      {
+        "seed": 991564255,
+        "mean_wait": 38.75
+      },
+      {
+        "seed": 939657385,
+        "mean_wait": 41.583333333333336
+      },
+      {
+        "seed": 1973981844,
+        "mean_wait": 36.916666666666664
+      },
+      {
+        "seed": 1244602538,
+        "mean_wait": 36.666666666666664
+      },
+      {
+        "seed": 92297589,
+        "mean_wait": 35.0
+      },
+      {
+        "seed": 1787479226,
+        "mean_wait": 35.25
+      },
+      {
+        "seed": 429497919,
+        "mean_wait": 25.0
+      },
+      {
+        "seed": 798461319,
+        "mean_wait": 27.25
+      },
+      {
+        "seed": 1272987056,
+        "mean_wait": 34.583333333333336
+      },
+      {
+        "seed": 519218416,
+        "mean_wait": 38.083333333333336
+      },
+      {
+        "seed": 1428914934,
+        "mean_wait": 34.083333333333336
+      },
+      {
+        "seed": 1812935769,
+        "mean_wait": 39.916666666666664
+      },
+      {
+        "seed": 815398389,
+        "mean_wait": 36.166666666666664
+      },
+      {
+        "seed": 1302957853,
+        "mean_wait": 33.75
+      },
+      {
+        "seed": 1220455187,
+        "mean_wait": 37.083333333333336
+      },
+      {
+        "seed": 2144743702,
+        "mean_wait": 38.333333333333336
+      },
+      {
+        "seed": 1689440956,
+        "mean_wait": 35.166666666666664
+      },
+      {
+        "seed": 148287319,
+        "mean_wait": 39.25
+      },
+      {
+        "seed": 2062559164,
+        "mean_wait": 37.416666666666664
+      },
+      {
+        "seed": 1042560227,
+        "mean_wait": 33.916666666666664
+      },
+      {
+        "seed": 1736404157,
+        "mean_wait": 31.166666666666668
+      },
+      {
+        "seed": 1779465077,
+        "mean_wait": 32.166666666666664
+      },
+      {
+        "seed": 743061144,
+        "mean_wait": 43.083333333333336
+      },
+      {
+        "seed": 1576784849,
+        "mean_wait": 35.5
+      },
+      {
+        "seed": 1609337231,
+        "mean_wait": 34.75
+      },
+      {
+        "seed": 371375481,
+        "mean_wait": 35.166666666666664
+      },
+      {
+        "seed": 1885325846,
+        "mean_wait": 30.75
+      },
+      {
+        "seed": 463561237,
+        "mean_wait": 37.916666666666664
+      },
+      {
+        "seed": 703078820,
+        "mean_wait": 28.416666666666668
+      },
+      {
+        "seed": 1689017785,
+        "mean_wait": 28.75
+      },
+      {
+        "seed": 1591382744,
+        "mean_wait": 32.75
+      },
+      {
+        "seed": 2103217660,
+        "mean_wait": 34.416666666666664
+      },
+      {
+        "seed": 127023494,
+        "mean_wait": 33.833333333333336
+      },
+      {
+        "seed": 2015714664,
+        "mean_wait": 34.416666666666664
+      },
+      {
+        "seed": 186776492,
+        "mean_wait": 34.583333333333336
+      },
+      {
+        "seed": 1325123798,
+        "mean_wait": 37.666666666666664
+      },
+      {
+        "seed": 1690497763,
+        "mean_wait": 37.916666666666664
+      },
+      {
+        "seed": 731644238,
+        "mean_wait": 31.333333333333332
+      },
+      {
+        "seed": 724106992,
+        "mean_wait": 36.75
+      }
+    ]
+  },
+  "arms": {
+    "control": {
+      "policy_sha256": "ad46dd03f08820ab70af46b3c85638386997929f640e77188eabe7c115624a0b",
+      "selected_trial": 5,
+      "train": {
+        "valid": true,
+        "mean_wait": 13.885416666666666,
+        "p95_wait": 31,
+        "max_wait": 35,
+        "orders": 96,
+        "per_day": [
+          {
+            "seed": 577090037,
+            "mean_wait": 15.25
+          },
+          {
+            "seed": 271041745,
+            "mean_wait": 13.166666666666666
+          },
+          {
+            "seed": 1095513148,
+            "mean_wait": 14.666666666666666
+          },
+          {
+            "seed": 506456969,
+            "mean_wait": 12.583333333333334
+          },
+          {
+            "seed": 2127877499,
+            "mean_wait": 12.25
+          },
+          {
+            "seed": 1930549411,
+            "mean_wait": 14.666666666666666
+          },
+          {
+            "seed": 2028277857,
+            "mean_wait": 16.25
+          },
+          {
+            "seed": 1630434966,
+            "mean_wait": 12.25
+          }
+        ]
+      },
+      "holdout": {
+        "valid": true,
+        "mean_wait": 13.680989583333334,
+        "p95_wait": 28,
+        "max_wait": 43,
+        "orders": 768,
+        "per_day": [
+          {
+            "seed": 901749037,
+            "mean_wait": 14.916666666666666
+          },
+          {
+            "seed": 403123852,
+            "mean_wait": 10.583333333333334
+          },
+          {
+            "seed": 2095328386,
+            "mean_wait": 13.666666666666666
+          },
+          {
+            "seed": 121751464,
+            "mean_wait": 15.25
+          },
+          {
+            "seed": 1674216077,
+            "mean_wait": 15.5
+          },
+          {
+            "seed": 1858720390,
+            "mean_wait": 8.916666666666666
+          },
+          {
+            "seed": 9045414,
+            "mean_wait": 13.25
+          },
+          {
+            "seed": 1912923437,
+            "mean_wait": 12.75
+          },
+          {
+            "seed": 1143881027,
+            "mean_wait": 11.916666666666666
+          },
+          {
+            "seed": 982526257,
+            "mean_wait": 22.333333333333332
+          },
+          {
+            "seed": 439062303,
+            "mean_wait": 14.333333333333334
+          },
+          {
+            "seed": 1363349907,
+            "mean_wait": 14.25
+          },
+          {
+            "seed": 131383004,
+            "mean_wait": 9.333333333333334
+          },
+          {
+            "seed": 95872739,
+            "mean_wait": 11.916666666666666
+          },
+          {
+            "seed": 109289145,
+            "mean_wait": 13.25
+          },
+          {
+            "seed": 39534911,
+            "mean_wait": 17.666666666666668
+          },
+          {
+            "seed": 1637259727,
+            "mean_wait": 12.333333333333334
+          },
+          {
+            "seed": 930287327,
+            "mean_wait": 16.583333333333332
+          },
+          {
+            "seed": 1812976885,
+            "mean_wait": 14.583333333333334
+          },
+          {
+            "seed": 124729223,
+            "mean_wait": 17.75
+          },
+          {
+            "seed": 952158461,
+            "mean_wait": 16.833333333333332
+          },
+          {
+            "seed": 1880712864,
+            "mean_wait": 17.916666666666668
+          },
+          {
+            "seed": 2129497364,
+            "mean_wait": 12.416666666666666
+          },
+          {
+            "seed": 1001090105,
+            "mean_wait": 13.666666666666666
+          },
+          {
+            "seed": 1484771968,
+            "mean_wait": 13.666666666666666
+          },
+          {
+            "seed": 991564255,
+            "mean_wait": 16.75
+          },
+          {
+            "seed": 939657385,
+            "mean_wait": 15.833333333333334
+          },
+          {
+            "seed": 1973981844,
+            "mean_wait": 13.916666666666666
+          },
+          {
+            "seed": 1244602538,
+            "mean_wait": 12.166666666666666
+          },
+          {
+            "seed": 92297589,
+            "mean_wait": 13.333333333333334
+          },
+          {
+            "seed": 1787479226,
+            "mean_wait": 13.416666666666666
+          },
+          {
+            "seed": 429497919,
+            "mean_wait": 9.25
+          },
+          {
+            "seed": 798461319,
+            "mean_wait": 10.916666666666666
+          },
+          {
+            "seed": 1272987056,
+            "mean_wait": 12.833333333333334
+          },
+          {
+            "seed": 519218416,
+            "mean_wait": 16.666666666666668
+          },
+          {
+            "seed": 1428914934,
+            "mean_wait": 12.25
+          },
+          {
+            "seed": 1812935769,
+            "mean_wait": 14.666666666666666
+          },
+          {
+            "seed": 815398389,
+            "mean_wait": 13.75
+          },
+          {
+            "seed": 1302957853,
+            "mean_wait": 13.5
+          },
+          {
+            "seed": 1220455187,
+            "mean_wait": 14.583333333333334
+          },
+          {
+            "seed": 2144743702,
+            "mean_wait": 14.166666666666666
+          },
+          {
+            "seed": 1689440956,
+            "mean_wait": 12.083333333333334
+          },
+          {
+            "seed": 148287319,
+            "mean_wait": 15.5
+          },
+          {
+            "seed": 2062559164,
+            "mean_wait": 15.75
+          },
+          {
+            "seed": 1042560227,
+            "mean_wait": 12.833333333333334
+          },
+          {
+            "seed": 1736404157,
+            "mean_wait": 12.333333333333334
+          },
+          {
+            "seed": 1779465077,
+            "mean_wait": 11.583333333333334
+          },
+          {
+            "seed": 743061144,
+            "mean_wait": 17.666666666666668
+          },
+          {
+            "seed": 1576784849,
+            "mean_wait": 13.666666666666666
+          },
+          {
+            "seed": 1609337231,
+            "mean_wait": 13.666666666666666
+          },
+          {
+            "seed": 371375481,
+            "mean_wait": 13.833333333333334
+          },
+          {
+            "seed": 1885325846,
+            "mean_wait": 10.916666666666666
+          },
+          {
+            "seed": 463561237,
+            "mean_wait": 14.166666666666666
+          },
+          {
+            "seed": 703078820,
+            "mean_wait": 11.333333333333334
+          },
+          {
+            "seed": 1689017785,
+            "mean_wait": 9.25
+          },
+          {
+            "seed": 1591382744,
+            "mean_wait": 12.333333333333334
+          },
+          {
+            "seed": 2103217660,
+            "mean_wait": 13.25
+          },
+          {
+            "seed": 127023494,
+            "mean_wait": 12.583333333333334
+          },
+          {
+            "seed": 2015714664,
+            "mean_wait": 11.583333333333334
+          },
+          {
+            "seed": 186776492,
+            "mean_wait": 13.583333333333334
+          },
+          {
+            "seed": 1325123798,
+            "mean_wait": 12.916666666666666
+          },
+          {
+            "seed": 1690497763,
+            "mean_wait": 16.0
+          },
+          {
+            "seed": 731644238,
+            "mean_wait": 11.75
+          },
+          {
+            "seed": 724106992,
+            "mean_wait": 13.416666666666666
+          }
+        ]
+      },
+      "evaluations_logged": 8,
+      "integrity_changes": [],
+      "training_score_reproduced": true,
+      "eligible": true,
+      "session": {
+        "is_error": false,
+        "subtype": "success",
+        "modelUsage": {
+          "claude-opus-5[1m]": {
+            "inputTokens": 86,
+            "outputTokens": 18873,
+            "cacheReadInputTokens": 1244392,
+            "cacheCreationInputTokens": 41458,
+            "webSearchRequests": 0,
+            "costUSD": 1.5090309999999998,
+            "contextWindow": 1000000,
+            "maxOutputTokens": 64000,
+            "canonicalModel": "claude-opus-5",
+            "provider": "firstParty"
+          }
+        },
+        "usage": {
+          "input_tokens": 86,
+          "cache_creation_input_tokens": 41458,
+          "cache_read_input_tokens": 1244392,
+          "output_tokens": 18873,
+          "output_tokens_details": {
+            "thinking_tokens": 5555
+          },
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 41458,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "not_available",
+          "iterations": [
+            {
+              "input_tokens": 2,
+              "output_tokens": 723,
+              "cache_read_input_tokens": 40780,
+              "cache_creation_input_tokens": 2121,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 2121
+              },
+              "type": "message"
+            }
+          ],
+          "speed": "standard"
+        },
+        "total_cost_usd": 1.5090309999999998,
+        "duration_ms": 266155,
+        "wall_seconds": 267.00127295800485,
+        "study_tools_verified": true
+      },
+      "session_within_limits": true
+    },
+    "exploration": {
+      "policy_sha256": "535e45567b071225e8409686df0265433b115a487e7919214b2a6b0a307979ac",
+      "selected_trial": 4,
+      "train": {
+        "valid": true,
+        "mean_wait": 14.239583333333334,
+        "p95_wait": 35,
+        "max_wait": 39,
+        "orders": 96,
+        "per_day": [
+          {
+            "seed": 577090037,
+            "mean_wait": 15.25
+          },
+          {
+            "seed": 271041745,
+            "mean_wait": 14.416666666666666
+          },
+          {
+            "seed": 1095513148,
+            "mean_wait": 15.166666666666666
+          },
+          {
+            "seed": 506456969,
+            "mean_wait": 13.0
+          },
+          {
+            "seed": 2127877499,
+            "mean_wait": 12.916666666666666
+          },
+          {
+            "seed": 1930549411,
+            "mean_wait": 14.833333333333334
+          },
+          {
+            "seed": 2028277857,
+            "mean_wait": 16.25
+          },
+          {
+            "seed": 1630434966,
+            "mean_wait": 12.083333333333334
+          }
+        ]
+      },
+      "holdout": {
+        "valid": true,
+        "mean_wait": 14.104166666666666,
+        "p95_wait": 31,
+        "max_wait": 43,
+        "orders": 768,
+        "per_day": [
+          {
+            "seed": 901749037,
+            "mean_wait": 15.416666666666666
+          },
+          {
+            "seed": 403123852,
+            "mean_wait": 9.916666666666666
+          },
+          {
+            "seed": 2095328386,
+            "mean_wait": 14.25
+          },
+          {
+            "seed": 121751464,
+            "mean_wait": 15.666666666666666
+          },
+          {
+            "seed": 1674216077,
+            "mean_wait": 15.583333333333334
+          },
+          {
+            "seed": 1858720390,
+            "mean_wait": 9.666666666666666
+          },
+          {
+            "seed": 9045414,
+            "mean_wait": 13.833333333333334
+          },
+          {
+            "seed": 1912923437,
+            "mean_wait": 13.833333333333334
+          },
+          {
+            "seed": 1143881027,
+            "mean_wait": 12.916666666666666
+          },
+          {
+            "seed": 982526257,
+            "mean_wait": 23.083333333333332
+          },
+          {
+            "seed": 439062303,
+            "mean_wait": 14.333333333333334
+          },
+          {
+            "seed": 1363349907,
+            "mean_wait": 13.833333333333334
+          },
+          {
+            "seed": 131383004,
+            "mean_wait": 10.083333333333334
+          },
+          {
+            "seed": 95872739,
+            "mean_wait": 12.333333333333334
+          },
+          {
+            "seed": 109289145,
+            "mean_wait": 13.333333333333334
+          },
+          {
+            "seed": 39534911,
+            "mean_wait": 17.75
+          },
+          {
+            "seed": 1637259727,
+            "mean_wait": 12.083333333333334
+          },
+          {
+            "seed": 930287327,
+            "mean_wait": 17.166666666666668
+          },
+          {
+            "seed": 1812976885,
+            "mean_wait": 14.416666666666666
+          },
+          {
+            "seed": 124729223,
+            "mean_wait": 17.0
+          },
+          {
+            "seed": 952158461,
+            "mean_wait": 17.916666666666668
+          },
+          {
+            "seed": 1880712864,
+            "mean_wait": 17.833333333333332
+          },
+          {
+            "seed": 2129497364,
+            "mean_wait": 12.666666666666666
+          },
+          {
+            "seed": 1001090105,
+            "mean_wait": 13.416666666666666
+          },
+          {
+            "seed": 1484771968,
+            "mean_wait": 13.75
+          },
+          {
+            "seed": 991564255,
+            "mean_wait": 17.916666666666668
+          },
+          {
+            "seed": 939657385,
+            "mean_wait": 17.25
+          },
+          {
+            "seed": 1973981844,
+            "mean_wait": 14.0
+          },
+          {
+            "seed": 1244602538,
+            "mean_wait": 12.75
+          },
+          {
+            "seed": 92297589,
+            "mean_wait": 13.5
+          },
+          {
+            "seed": 1787479226,
+            "mean_wait": 14.416666666666666
+          },
+          {
+            "seed": 429497919,
+            "mean_wait": 9.75
+          },
+          {
+            "seed": 798461319,
+            "mean_wait": 10.833333333333334
+          },
+          {
+            "seed": 1272987056,
+            "mean_wait": 13.166666666666666
+          },
+          {
+            "seed": 519218416,
+            "mean_wait": 16.916666666666668
+          },
+          {
+            "seed": 1428914934,
+            "mean_wait": 12.75
+          },
+          {
+            "seed": 1812935769,
+            "mean_wait": 15.333333333333334
+          },
+          {
+            "seed": 815398389,
+            "mean_wait": 14.083333333333334
+          },
+          {
+            "seed": 1302957853,
+            "mean_wait": 13.583333333333334
+          },
+          {
+            "seed": 1220455187,
+            "mean_wait": 15.666666666666666
+          },
+          {
+            "seed": 2144743702,
+            "mean_wait": 14.5
+          },
+          {
+            "seed": 1689440956,
+            "mean_wait": 13.333333333333334
+          },
+          {
+            "seed": 148287319,
+            "mean_wait": 16.75
+          },
+          {
+            "seed": 2062559164,
+            "mean_wait": 16.333333333333332
+          },
+          {
+            "seed": 1042560227,
+            "mean_wait": 13.166666666666666
+          },
+          {
+            "seed": 1736404157,
+            "mean_wait": 11.833333333333334
+          },
+          {
+            "seed": 1779465077,
+            "mean_wait": 12.0
+          },
+          {
+            "seed": 743061144,
+            "mean_wait": 17.083333333333332
+          },
+          {
+            "seed": 1576784849,
+            "mean_wait": 14.5
+          },
+          {
+            "seed": 1609337231,
+            "mean_wait": 13.666666666666666
+          },
+          {
+            "seed": 371375481,
+            "mean_wait": 15.666666666666666
+          },
+          {
+            "seed": 1885325846,
+            "mean_wait": 10.416666666666666
+          },
+          {
+            "seed": 463561237,
+            "mean_wait": 15.083333333333334
+          },
+          {
+            "seed": 703078820,
+            "mean_wait": 10.583333333333334
+          },
+          {
+            "seed": 1689017785,
+            "mean_wait": 9.833333333333334
+          },
+          {
+            "seed": 1591382744,
+            "mean_wait": 12.583333333333334
+          },
+          {
+            "seed": 2103217660,
+            "mean_wait": 13.75
+          },
+          {
+            "seed": 127023494,
+            "mean_wait": 12.75
+          },
+          {
+            "seed": 2015714664,
+            "mean_wait": 11.833333333333334
+          },
+          {
+            "seed": 186776492,
+            "mean_wait": 14.416666666666666
+          },
+          {
+            "seed": 1325123798,
+            "mean_wait": 13.25
+          },
+          {
+            "seed": 1690497763,
+            "mean_wait": 16.416666666666668
+          },
+          {
+            "seed": 731644238,
+            "mean_wait": 13.166666666666666
+          },
+          {
+            "seed": 724106992,
+            "mean_wait": 15.75
+          }
+        ]
+      },
+      "evaluations_logged": 4,
+      "integrity_changes": [],
+      "training_score_reproduced": true,
+      "eligible": true,
+      "session": {
+        "is_error": false,
+        "subtype": "success",
+        "modelUsage": {
+          "claude-opus-5[1m]": {
+            "inputTokens": 38,
+            "outputTokens": 12451,
+            "cacheReadInputTokens": 417337,
+            "cacheCreationInputTokens": 30257,
+            "webSearchRequests": 0,
+            "costUSD": 0.8227035,
+            "contextWindow": 1000000,
+            "maxOutputTokens": 64000,
+            "canonicalModel": "claude-opus-5",
+            "provider": "firstParty"
+          }
+        },
+        "usage": {
+          "input_tokens": 38,
+          "cache_creation_input_tokens": 30257,
+          "cache_read_input_tokens": 417337,
+          "output_tokens": 12451,
+          "output_tokens_details": {
+            "thinking_tokens": 4318
+          },
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 30257,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "not_available",
+          "iterations": [
+            {
+              "input_tokens": 2,
+              "output_tokens": 512,
+              "cache_read_input_tokens": 31261,
+              "cache_creation_input_tokens": 439,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 439
+              },
+              "type": "message"
+            }
+          ],
+          "speed": "standard"
+        },
+        "total_cost_usd": 0.8227035,
+        "duration_ms": 176537,
+        "wall_seconds": 177.3897236250341,
+        "study_tools_verified": true
+      },
+      "session_within_limits": true
+    }
+  },
+  "automatic_checks_passed": true,
+  "protocol_review": "REQUIRED",
+  "provisional_holdout_delta_exploration_minus_control": 0.42317708333333215,
+  "interpretation": "Automatic checks do not certify session compliance. Obtain an independent tool-trace/protocol review before interpreting the provisional delta. One pair is a pilot, not evidence of general creativity improvement. Negative delta favors exploration."
+}

@@ -1,6 +1,7 @@
 """Deterministic toy cafe. Times are simulated seconds, not real cafe estimates."""
 from __future__ import annotations
 
+import ast
 import json
 import math
 import random
@@ -14,6 +15,32 @@ MENU = {
     "latte": {"family": "coffee", "prep": 2, "brew": 4, "serve": 3},
     "tea": {"family": "tea", "prep": 1, "brew": 3, "serve": 1},
 }
+
+POLICY_MODULES = {"__future__", "math", "heapq", "itertools", "functools", "collections",
+                  "dataclasses", "typing", "bisect", "array", "statistics", "copy"}
+
+
+def screen_source(source: str) -> None:
+    """Screen common violations of this toy's deterministic policy contract.
+
+    This is not a general Python security sandbox; runtime scorer isolation and
+    the independent session audit still matter.
+    """
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Import):
+            modules = [alias.name.split(".")[0] for alias in node.names]
+        elif isinstance(node, ast.ImportFrom):
+            modules = [(node.module or "").split(".")[0]]
+        else:
+            modules = []
+        if any(module not in POLICY_MODULES for module in modules):
+            raise InvalidPlan("policy import is outside the deterministic module allowlist")
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in {
+            "__import__", "open", "exec", "eval", "compile", "input", "globals", "locals",
+        }:
+            raise InvalidPlan("policy uses a forbidden runtime/reflection operation")
+        if isinstance(node, ast.Attribute) and node.attr.startswith("__"):
+            raise InvalidPlan("policy uses runtime introspection")
 
 
 class InvalidPlan(ValueError):
@@ -79,6 +106,8 @@ def validate(jobs: list[dict], plan: list[dict]) -> list[float]:
 
 
 def score(policy_path: Path, seeds: list[int]) -> dict:
+    source = policy_path.read_text()
+    screen_source(source)
     cases = [orders(seed) for seed in seeds]
     # Only plans cross the process boundary. Candidate code never runs alongside
     # this validator and cannot replace its globals or mutate its input objects.
@@ -93,7 +122,7 @@ print(json.dumps([module.schedule(jobs) for jobs in payload['cases']]))
         try:
             result = subprocess.run(
                 [sys.executable, "-I", "-c", worker], cwd=directory,
-                input=json.dumps({"source": policy_path.read_text(), "cases": cases}),
+                input=json.dumps({"source": source, "cases": cases}),
                 text=True, capture_output=True, timeout=10,
             )
         except subprocess.TimeoutExpired as error:

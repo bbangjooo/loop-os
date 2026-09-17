@@ -65,6 +65,8 @@ def test_policy_cannot_rewrite_the_validation_input(tmp_path):
 @pytest.mark.parametrize("body", [
     "import cafe\ncafe.validate=lambda jobs, plan: [0.0]*len(jobs)\ndef schedule(orders): return []\n",
     "print('{\"valid\": true, \"mean_wait\": 0}')\ndef schedule(orders): return []\n",
+    "from time import perf_counter\nstamp = perf_counter()\n" + (HERE / "app/policy.py").read_text(),
+    "clock = __import__('time')\n" + (HERE / "app/policy.py").read_text(),
 ])
 def test_policy_cannot_replace_validator_or_inject_a_score(tmp_path, body):
     policy = tmp_path / "cheat.py"
@@ -76,9 +78,12 @@ def test_policy_cannot_replace_validator_or_inject_a_score(tmp_path, body):
 
 def test_paired_inputs_budget_and_frozen_comparison(tmp_path):
     pair = tmp_path / "pair"
-    manifest = runner.prepare(pair, seed=3, budget=2)
-    for name in ("cafe.py", "objective.py", "policy.py", "config.json"):
+    manifest = runner.prepare(pair, seed=3, budget=3)
+    for name in ("orders.json", "objective.py", "policy.py", "config.json"):
         assert (pair / "control" / name).read_bytes() == (pair / "exploration" / name).read_bytes()
+    assert not (pair / "control/cafe.py").exists()
+    config = json.loads((pair / "control/config.json").read_text())
+    assert "train_seeds" not in config and "holdout_seeds" not in config
     assert not set(manifest["train_seeds"]) & set(manifest["holdout_seeds"])
     assert orders(3000) == orders(3000) and orders(3000) != orders(3001)
     app = pair / "control"
@@ -87,10 +92,11 @@ def test_paired_inputs_budget_and_frozen_comparison(tmp_path):
     (app / "policy.py").write_text("def schedule(orders): return []\n")
     assert subprocess.run(command, cwd=app, capture_output=True).returncode == 5
     assert subprocess.run(command, cwd=app, capture_output=True).returncode == 4
-    assert len((app / ".evaluations/trials.jsonl").read_text().splitlines()) == 2
+    assert len((pair / "evaluations/control/trials.jsonl").read_text().splitlines()) == 3
     report = runner.compare(pair)
-    assert not report["comparable"]  # invalid control and absent model metadata
-    assert not report["arms"]["control"]["holdout"]["valid"]
+    assert not report["automatic_checks_passed"]  # invalid control and absent model metadata
+    assert report["arms"]["control"]["holdout"]["valid"]  # invalid last edit cannot replace the incumbent
+    assert report["arms"]["control"]["selected_trial"] == 1
     assert report["arms"]["exploration"]["holdout"]["valid"]
     with pytest.raises(ValueError, match="already frozen"):
         runner.compare(pair)
@@ -104,13 +110,13 @@ def test_same_model_required_and_tampered_scorer_disqualifies(tmp_path, tamper):
     runner.write_json(pair / "manifest.json", manifest)
     for arm, model in (("control", "model-a"), ("exploration", "model-b")):
         runner.write_json(pair / f"{arm}-session.json", {
-            "is_error": False, "modelUsage": {model: {}}, "total_cost_usd": 0.2, "wall_seconds": 10,
+            "is_error": False, "modelUsage": {model: {}}, "total_cost_usd": 0.2, "wall_seconds": 10, "study_tools_verified": True,
         })
     if tamper:
-        (pair / "exploration/cafe.py").write_text("# edited scorer\n")
+        (pair / "exploration/objective.py").write_text("print(0)\n")
     report = runner.compare(pair)
-    assert not report["comparable"]
-    assert report["arms"]["exploration"]["integrity_changes"] == (["cafe.py"] if tamper else [])
+    assert not report["automatic_checks_passed"]
+    assert report["arms"]["exploration"]["integrity_changes"] == (["objective.py"] if tamper else [])
     if not tamper:
         assert all(row["eligible"] for row in report["arms"].values())
     assert report["arms"]["exploration"]["holdout"]["valid"]  # clean coordinator scorer
@@ -124,13 +130,13 @@ def test_missing_invalid_or_excess_resource_usage_disqualifies(tmp_path, cost, s
     runner.write_json(pair / "manifest.json", manifest)
     for arm, amount in (("control", 0.2), ("exploration", cost)):
         runner.write_json(pair / f"{arm}-session.json", {
-            "is_error": False, "modelUsage": {"same-model": {}},
+            "is_error": False, "modelUsage": {"same-model": {}}, "study_tools_verified": True,
             "total_cost_usd": amount, "wall_seconds": 10 if arm == "control" else seconds,
         })
     report = runner.compare(pair)
     assert report["arms"]["control"]["eligible"]
     assert not report["arms"]["exploration"]["session_within_limits"]
-    assert not report["comparable"]
+    assert not report["automatic_checks_passed"]
 
 
 def test_valid_matched_pair_reports_a_comparable_tie(tmp_path):
@@ -140,9 +146,32 @@ def test_valid_matched_pair_reports_a_comparable_tie(tmp_path):
     runner.write_json(pair / "manifest.json", manifest)
     for arm in ("control", "exploration"):
         runner.write_json(pair / f"{arm}-session.json", {
-            "is_error": False, "modelUsage": {"same-model": {}},
+            "is_error": False, "modelUsage": {"same-model": {}}, "study_tools_verified": True,
             "total_cost_usd": 0.2, "wall_seconds": 10,
         })
     report = runner.compare(pair)
-    assert report["comparable"]
-    assert report["holdout_delta_exploration_minus_control"] == 0
+    assert report["automatic_checks_passed"]
+    assert report["protocol_review"] == "REQUIRED"
+    assert report["provisional_holdout_delta_exploration_minus_control"] == 0
+
+
+def test_stdio_tools_block_escape_and_protected_edits_without_spending_budget(tmp_path):
+    pair = tmp_path / "pair"
+    runner.prepare(pair, seed=4, budget=2)
+    calls = [
+        {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2024-11-05"}},
+        {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "read_file", "arguments": {"path": "../manifest.json"}}},
+        {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "write_file", "arguments": {"path": "orders.json", "content": "[]"}}},
+        {"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "syntax_check", "arguments": {}}},
+        {"jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": {"name": "evaluate", "arguments": {}}},
+        {"jsonrpc": "2.0", "id": 6, "method": "tools/call", "params": {"name": "evaluate", "arguments": {}}},
+    ]
+    result = subprocess.run([sys.executable, str(HERE / "tools.py"), "--workspace", str(pair / "control")],
+                            input="\n".join(json.dumps(c) for c in calls) + "\n", text=True,
+                            capture_output=True, check=True)
+    messages = [json.loads(line)["result"] for line in result.stdout.splitlines()]
+    assert messages[1]["isError"] and messages[2]["isError"]
+    assert json.loads(messages[3]["content"][0]["text"])["executed"] is False
+    assert json.loads(messages[4]["content"][0]["text"])["exit_code"] == 0
+    assert json.loads(messages[5]["content"][0]["text"])["exit_code"] == 4
+    assert len((pair / "evaluations/control/trials.jsonl").read_text().splitlines()) == 2
